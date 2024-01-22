@@ -19,5 +19,12 @@ time = "0.3.31"
 tower-sessions-core = "0.9.1"
 
 [dev-dependencies]
+axum = "0.7.1"
 tower-sessions = "0.9.1"
+tower-sessions-sqlx-store = { version = "0.9.2", features = ["sqlite"] }
+tokio = { version = "1.32.0", features = ["full"] }
 tokio-test = "0.4.3"
+serde = "1"
+
+[[example]]
+name = "basic"

@@ -16,7 +16,6 @@ readme = "../README.md"
 sqlite = ["sqlx/sqlite"]
 postgres = ["sqlx/postgres"]
 mysql = ["sqlx/mysql"]
-deletion-task = ["tower-sessions-core/deletion-task"]
 
 [dependencies]
 async-trait = "0.1.77"
@@ -24,8 +23,23 @@ rmp-serde = "1.1.2"
 sqlx = { version = "0.7.2", features = ["time", "runtime-tokio"] }
 thiserror = "1.0.56"
 time = "0.3.31"
-tower-sessions-core = "0.9.1"
+tower-sessions-core = { version = "0.9.1", features = ["deletion-task"] }
 
 [dev-dependencies]
+axum = "0.7.1"
 tower-sessions = "0.9.1"
+tokio = { version = "1.32.0", features = ["full"] }
 tokio-test = "0.4.3"
+serde = "1"
+
+[[example]]
+name = "sqlite"
+required-features = ["sqlite"]
+
+[[example]]
+name = "postgres"
+required-features = ["postgres"]
+
+[[example]]
+name = "mysql"
+required-features = ["mysql"]
