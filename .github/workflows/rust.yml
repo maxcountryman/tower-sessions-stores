@@ -56,22 +56,18 @@ jobs:
             docker: true
 
           - store: postgres_store
-            features: postgres
             docker: true
 
           - store: mysql_store
-            features: mysql
             docker: true
 
           - store: sqlite_store
-            features: sqlite
             docker: false
 
           - store: moka_store
             docker: false
 
           - store: caching_store
-            features: moka-store,sqlite
             docker: false
 
     steps:
@@ -86,4 +82,4 @@ jobs:
           docker compose -f tests/docker-compose.yml up ${{ matrix.store }} -d
       - name: Run integration tests
         run: |
-          cargo nextest run ${{ matrix.store }}_test --test test-integration --features ${{ matrix.features }}
+          cargo nextest run ${{ matrix.store }}_test --test test-integration
