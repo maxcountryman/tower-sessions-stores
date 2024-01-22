@@ -1,0 +1,28 @@
+[package]
+name = "tower-sessions-mongodb-store"
+description = "MongoDB session store for `tower-sessions`."
+version = "0.9.1"
+edition = "2021"
+authors = ["Max Countryman <hello@maxcountryman.com>"]
+license = "MIT"
+homepage = "https://github.com/maxcountryman/tower-sessions-stores"
+keywords = ["axum", "sessions", "cookie", "tower", "mongodb"]
+categories = ["asynchronous", "network-programming", "web-programming"]
+repository = "https://github.com/maxcountryman/tower-sessions-stores"
+documentation = "https://docs.rs/tower-sessions-mongodb-store"
+readme = "README.md"
+
+[dependencies]
+async-trait = "0.1.77"
+bson = { version = "2.7.0", features = ["time-0_3"] }
+mongodb = { version = "2.7.0" }
+fred = { version = "7.0.0" }
+rmp-serde = "1.1.2"
+serde = "1.0.195"
+thiserror = "1.0.56"
+time = "0.3.31"
+tower-sessions-core = "0.9.1"
+
+[dev-dependencies]
+tower-sessions = "0.9.1"
+tokio-test = "0.4.3"

@@ -1,0 +1,25 @@
+[package]
+name = "tower-sessions-redis-store"
+description = "Redis session store for `tower-sessions`."
+version = "0.9.1"
+edition = "2021"
+authors = ["Max Countryman <hello@maxcountryman.com>"]
+license = "MIT"
+homepage = "https://github.com/maxcountryman/tower-sessions-stores"
+keywords = ["axum", "sessions", "cookie", "tower", "redis"]
+categories = ["asynchronous", "network-programming", "web-programming"]
+repository = "https://github.com/maxcountryman/tower-sessions-stores"
+documentation = "https://docs.rs/tower-sessions-redis-store"
+readme = "README.md"
+
+[dependencies]
+async-trait = "0.1.77"
+fred = { version = "7.0.0" }
+rmp-serde = "1.1.2"
+thiserror = "1.0.56"
+time = "0.3.31"
+tower-sessions-core = "0.9.1"
+
+[dev-dependencies]
+tower-sessions = "0.9.1"
+tokio-test = "0.4.3"

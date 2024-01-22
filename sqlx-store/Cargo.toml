@@ -1,0 +1,30 @@
+[package]
+name = "tower-sessions-sqlx-store"
+description = "SQLx session stores for `tower-sessions`."
+version = "0.9.1"
+edition = "2021"
+authors = ["Max Countryman <hello@maxcountryman.com>"]
+license = "MIT"
+homepage = "https://github.com/maxcountryman/tower-sessions-stores"
+keywords = ["axum", "sessions", "cookie", "tower", "sqlx"]
+categories = ["asynchronous", "network-programming", "web-programming"]
+repository = "https://github.com/maxcountryman/tower-sessions-stores"
+documentation = "https://docs.rs/tower-sessions-sqlx-store"
+readme = "README.md"
+
+[features]
+sqlite = ["sqlx/sqlite"]
+postgres = ["sqlx/postgres"]
+mysql = ["sqlx/mysql"]
+
+[dependencies]
+async-trait = "0.1.77"
+rmp-serde = "1.1.2"
+sqlx = { version = "0.7.2", features = ["time", "runtime-tokio"] }
+thiserror = "1.0.56"
+time = "0.3.31"
+tower-sessions-core = "0.9.1"
+
+[dev-dependencies]
+tower-sessions = "0.9.1"
+tokio-test = "0.4.3"
