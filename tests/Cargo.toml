@@ -1,0 +1,28 @@
+[package]
+name = "tests"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dev-dependencies]
+axum = "0.7"
+http = "1.0"
+http-body-util = "0.1"
+hyper = "1.0"
+time = "0.3.30"
+tokio = { version = "1", features = ["full"] }
+tower = "0.4.13"
+tower-cookies = "0.10.0"
+tower-sessions = "0.9"
+tower-sessions-sqlx-store = { path = "../sqlx-store/", features = [
+    "sqlite",
+    "mysql",
+    "postgres",
+] }
+tower-sessions-redis-store = { path = "../redis-store/" }
+tower-sessions-mongodb-store = { path = "../mongodb-store/" }
+tower-sessions-moka-store = { path = "../moka-store/" }
+
+[[test]]
+name = "test_integration"
+path = "test-integration.rs"

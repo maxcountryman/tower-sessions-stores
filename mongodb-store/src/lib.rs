@@ -62,7 +62,7 @@ impl MongoDBStore {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use tower_sessions::{mongodb::Client, MongoDBStore};
+    /// use tower_sessions_mongodb_store::{mongodb::Client, MongoDBStore};
     ///
     /// # tokio_test::block_on(async {
     /// let database_url = std::option_env!("DATABASE_URL").unwrap();

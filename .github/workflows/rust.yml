@@ -1,0 +1,89 @@
+name: Rust
+
+on:
+  push:
+    branches:
+      - main
+  pull_request: {}
+
+env:
+  CARGO_TERM_COLOR: always
+  REDIS_URL: redis://localhost:6379/1
+  MONGODB_URL: mongodb://localhost:27017
+  POSTGRES_URL: postgres://postgres:postgres@localhost:5432
+  MYSQL_URL: mysql://root@127.0.0.1:3306/public
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          rustup toolchain install nightly --profile minimal --component rustfmt --component clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: clippy
+        run: |
+          cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: rustfmt
+        run: |
+          cargo fmt --all --check
+
+  check-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          rustup toolchain install stable --profile minimal
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo doc
+        env:
+          RUSTDOCFLAGS: "-D rustdoc::broken-intra-doc-links"
+        run: |
+          cargo doc --all-features --no-deps
+
+  test-integration:
+    needs: check
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        include:
+          - store: redis_store
+            docker: true
+
+          - store: mongodb_store
+            docker: true
+
+          - store: postgres_store
+            features: postgres
+            docker: true
+
+          - store: mysql_store
+            features: mysql
+            docker: true
+
+          - store: sqlite_store
+            features: sqlite
+            docker: false
+
+          - store: moka_store
+            docker: false
+
+          - store: caching_store
+            features: moka-store,sqlite
+            docker: false
+
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          rustup toolchain install ${{ env.MSRV }} --profile minimal
+      - uses: Swatinem/rust-cache@v2
+      - uses: taiki-e/install-action@nextest
+      - name: Start session store
+        if: matrix.docker
+        run: |
+          docker compose -f tests/docker-compose.yml up ${{ matrix.store }} -d
+      - name: Run integration tests
+        run: |
+          cargo nextest run ${{ matrix.store }}_test --test integration-tests --features ${{ matrix.features }}

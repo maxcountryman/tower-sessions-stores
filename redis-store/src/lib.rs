@@ -43,8 +43,7 @@ impl<C: KeysInterface + Send + Sync> RedisStore<C> {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use fred::prelude::*;
-    /// use tower_sessions::RedisStore;
+    /// use tower_sessions_redis_store::{fred::prelude::*, RedisStore};
     ///
     /// # tokio_test::block_on(async {
     /// let pool = RedisPool::new(RedisConfig::default(), None, None, None, 6).unwrap();

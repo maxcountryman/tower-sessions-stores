@@ -18,7 +18,8 @@ impl MokaStore {
     /// # Examples
     ///
     /// ```rust
-    /// use tower_sessions::{MemoryStore, MokaStore};
+    /// use tower_sessions::MemoryStore;
+    /// use tower_sessions_moka_store::MokaStore;
     /// let session_store = MokaStore::new(Some(2_000));
     /// ```
     pub fn new(max_capacity: Option<u64>) -> Self {
