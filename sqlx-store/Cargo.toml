@@ -10,7 +10,7 @@ keywords = ["axum", "sessions", "cookie", "tower", "sqlx"]
 categories = ["asynchronous", "network-programming", "web-programming"]
 repository = "https://github.com/maxcountryman/tower-sessions-stores"
 documentation = "https://docs.rs/tower-sessions-sqlx-store"
-readme = "README.md"
+readme = "../README.md"
 
 [features]
 sqlite = ["sqlx/sqlite"]
