@@ -82,4 +82,4 @@ jobs:
           docker compose -f tests/docker-compose.yml up ${{ matrix.store }} -d
       - name: Run integration tests
         run: |
-          cargo nextest run ${{ matrix.store }}_test --test test-integration
+          cargo nextest run ${{ matrix.store }}_test --test test_integration
