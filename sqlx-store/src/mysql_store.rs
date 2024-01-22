@@ -22,7 +22,7 @@ impl MySqlStore {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use tower_sessions::{sqlx::MySqlPool, MySqlStore};
+    /// use tower_sessions_sqlx::{sqlx::MySqlPool, MySqlStore};
     ///
     /// # tokio_test::block_on(async {
     /// let database_url = std::option_env!("DATABASE_URL").unwrap();
@@ -43,7 +43,7 @@ impl MySqlStore {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use tower_sessions::{sqlx::MySqlPool, MySqlStore};
+    /// use tower_sessions_sqlx::{sqlx::MySqlPool, MySqlStore};
     ///
     /// # tokio_test::block_on(async {
     /// let database_url = std::option_env!("DATABASE_URL").unwrap();

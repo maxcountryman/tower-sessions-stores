@@ -12,6 +12,9 @@ repository = "https://github.com/maxcountryman/tower-sessions-stores"
 documentation = "https://docs.rs/tower-sessions-mongodb-store"
 readme = "README.md"
 
+[features]
+deletion-task = ["tower-sessions-core/deletion-task"]
+
 [dependencies]
 async-trait = "0.1.77"
 bson = { version = "2.7.0", features = ["time-0_3"] }

@@ -22,7 +22,7 @@ impl SqliteStore {
     /// # Examples
     ///
     /// ```rust,no_run
-    /// use tower_sessions::{sqlx::SqlitePool, SqliteStore};
+    /// use tower_sessions_sqlx::{sqlx::SqlitePool, SqliteStore};
     ///
     /// # tokio_test::block_on(async {
     /// let pool = SqlitePool::connect("sqlite::memory:").await.unwrap();
