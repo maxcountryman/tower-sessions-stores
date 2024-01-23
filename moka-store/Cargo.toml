@@ -21,7 +21,7 @@ tower-sessions-core = "0.10.0"
 [dev-dependencies]
 axum = "0.7.1"
 tower-sessions = "0.10.0"
-tower-sessions-sqlx-store = { version = "0.10.0", features = ["sqlite"] }
+tower-sessions-sqlx-store = { path = "../sqlx-store/", features = ["sqlite"] }
 tokio = { version = "1.32.0", features = ["full"] }
 tokio-test = "0.4.3"
 serde = "1"
