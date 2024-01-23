@@ -1,14 +1,25 @@
+<h1 align="center">
+    tower-sessions-redis-store
+</h1>
+
+<p align="center">
+    Redis via `fred` session store for `tower-sessions`.
+</p>
+
+## 🤸 Usage
+
+```rust
 use std::net::SocketAddr;
 
 use axum::{response::IntoResponse, routing::get, Router};
 use serde::{Deserialize, Serialize};
 use time::Duration;
-use tower_sessions::{session_store::ExpiredDeletion, Expiry, Session, SessionManagerLayer};
-use tower_sessions_sqlx_store::{sqlx::SqlitePool, SqliteStore};
+use tower_sessions::{Expiry, Session, SessionManagerLayer};
+use tower_sessions_redis_store::{fred::prelude::*, RedisStore};
 
 const COUNTER_KEY: &str = "counter";
 
-#[derive(Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 struct Counter(usize);
 
 async fn handler(session: Session) -> impl IntoResponse {
@@ -19,16 +30,12 @@ async fn handler(session: Session) -> impl IntoResponse {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let pool = SqlitePool::connect("sqlite::memory:").await?;
-    let session_store = SqliteStore::new(pool);
-    session_store.migrate().await?;
+    let pool = RedisPool::new(RedisConfig::default(), None, None, None, 6)?;
 
-    let deletion_task = tokio::task::spawn(
-        session_store
-            .clone()
-            .continuously_delete_expired(tokio::time::Duration::from_secs(60)),
-    );
+    let redis_conn = pool.connect();
+    pool.wait_for_connect().await?;
 
+    let session_store = RedisStore::new(pool);
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false)
         .with_expiry(Expiry::OnInactivity(Duration::seconds(10)));
@@ -39,7 +46,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     axum::serve(listener, app.into_make_service()).await?;
 
-    deletion_task.await??;
+    redis_conn.await??;
 
     Ok(())
 }
+```

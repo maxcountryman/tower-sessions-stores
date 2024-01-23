@@ -1,3 +1,14 @@
+<h1 align="center">
+    tower-sessions-mongodb-store
+</h1>
+
+<p align="center">
+    MongoDB session store for `tower-sessions`.
+</p>
+
+## 🤸 Usage
+
+```rust
 use std::net::SocketAddr;
 
 use axum::{response::IntoResponse, routing::get, Router};
@@ -10,6 +21,12 @@ const COUNTER_KEY: &str = "counter";
 
 #[derive(Serialize, Deserialize, Default)]
 struct Counter(usize);
+
+async fn handler(session: Session) -> impl IntoResponse {
+    let counter: Counter = session.get(COUNTER_KEY).await.unwrap().unwrap_or_default();
+    session.insert(COUNTER_KEY, counter.0 + 1).await.unwrap();
+    format!("Current count: {}", counter.0)
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -28,9 +45,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
-
-async fn handler(session: Session) -> impl IntoResponse {
-    let counter: Counter = session.get(COUNTER_KEY).await.unwrap().unwrap_or_default();
-    session.insert(COUNTER_KEY, counter.0 + 1).await.unwrap();
-    format!("Current count: {}", counter.0)
-}
+```

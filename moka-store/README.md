@@ -1,9 +1,21 @@
+<h1 align="center">
+    tower-sessions-moka-store
+</h1>
+
+<p align="center">
+    Moka session store for `tower-sessions`.
+</p>
+
+## 🤸 Usage
+
+```rust
 use std::net::SocketAddr;
 
 use axum::{response::IntoResponse, routing::get, Router};
 use serde::{Deserialize, Serialize};
 use time::Duration;
-use tower_sessions::{session_store::ExpiredDeletion, Expiry, Session, SessionManagerLayer};
+use tower_sessions::{CachingSessionStore, Expiry, Session, SessionManagerLayer};
+use tower_sessions_moka_store::MokaStore;
 use tower_sessions_sqlx_store::{sqlx::SqlitePool, SqliteStore};
 
 const COUNTER_KEY: &str = "counter";
@@ -19,17 +31,15 @@ async fn handler(session: Session) -> impl IntoResponse {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let pool = SqlitePool::connect("sqlite::memory:").await?;
-    let session_store = SqliteStore::new(pool);
-    session_store.migrate().await?;
+    let pool = SqlitePool::connect(":memory:").await?;
 
-    let deletion_task = tokio::task::spawn(
-        session_store
-            .clone()
-            .continuously_delete_expired(tokio::time::Duration::from_secs(60)),
-    );
+    let sqlite_store = SqliteStore::new(pool);
+    sqlite_store.migrate().await?;
 
-    let session_layer = SessionManagerLayer::new(session_store)
+    let moka_store = MokaStore::new(Some(2000));
+    let caching_store = CachingSessionStore::new(moka_store, sqlite_store);
+
+    let session_layer = SessionManagerLayer::new(caching_store)
         .with_secure(false)
         .with_expiry(Expiry::OnInactivity(Duration::seconds(10)));
 
@@ -39,7 +49,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     axum::serve(listener, app.into_make_service()).await?;
 
-    deletion_task.await??;
-
     Ok(())
 }
+```

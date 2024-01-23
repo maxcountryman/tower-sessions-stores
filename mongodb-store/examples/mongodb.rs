@@ -4,21 +4,24 @@ use axum::{response::IntoResponse, routing::get, Router};
 use serde::{Deserialize, Serialize};
 use time::Duration;
 use tower_sessions::{Expiry, Session, SessionManagerLayer};
-use tower_sessions_redis_store::{fred::prelude::*, RedisStore};
+use tower_sessions_mongodb_store::{mongodb::Client, MongoDBStore};
 
 const COUNTER_KEY: &str = "counter";
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Serialize, Deserialize, Default)]
 struct Counter(usize);
+
+async fn handler(session: Session) -> impl IntoResponse {
+    let counter: Counter = session.get(COUNTER_KEY).await.unwrap().unwrap_or_default();
+    session.insert(COUNTER_KEY, counter.0 + 1).await.unwrap();
+    format!("Current count: {}", counter.0)
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let pool = RedisPool::new(RedisConfig::default(), None, None, None, 6)?;
-
-    let redis_conn = pool.connect();
-    pool.wait_for_connect().await?;
-
-    let session_store = RedisStore::new(pool);
+    let database_url = std::option_env!("DATABASE_URL").expect("Missing DATABASE_URL.");
+    let client = Client::with_uri_str(database_url).await?;
+    let session_store = MongoDBStore::new(client, "tower-sessions".to_string());
     let session_layer = SessionManagerLayer::new(session_store)
         .with_secure(false)
         .with_expiry(Expiry::OnInactivity(Duration::seconds(10)));
@@ -29,13 +32,5 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     axum::serve(listener, app.into_make_service()).await?;
 
-    redis_conn.await??;
-
     Ok(())
-}
-
-async fn handler(session: Session) -> impl IntoResponse {
-    let counter: Counter = session.get(COUNTER_KEY).await.unwrap().unwrap_or_default();
-    session.insert(COUNTER_KEY, counter.0 + 1).await.unwrap();
-    format!("Current count: {}", counter.0)
 }
