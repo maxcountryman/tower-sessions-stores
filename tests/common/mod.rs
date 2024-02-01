@@ -178,9 +178,7 @@ macro_rules! route_tests {
             assert_eq!(session_cookie.name(), "id");
             assert_eq!(session_cookie.http_only(), Some(true));
             assert_eq!(session_cookie.same_site(), Some(SameSite::Strict));
-            assert!(session_cookie
-                .max_age()
-                .is_some_and(|d| d <= Duration::weeks(2)));
+            assert!(session_cookie.max_age().is_none());
             assert_eq!(session_cookie.secure(), Some(true));
             assert_eq!(session_cookie.path(), Some("/"));
         }
@@ -272,7 +270,6 @@ macro_rules! route_tests {
                 .header(header::COOKIE, second_session_cookie.encoded().to_string())
                 .body(Body::empty())
                 .unwrap();
-            dbg!("foo");
             let res = dbg!(app.oneshot(req).await).unwrap();
 
             assert_ne!(first_session_cookie.value(), second_session_cookie.value());
