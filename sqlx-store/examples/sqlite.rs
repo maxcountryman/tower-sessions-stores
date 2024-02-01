@@ -3,6 +3,7 @@ use std::net::SocketAddr;
 use axum::{response::IntoResponse, routing::get, Router};
 use serde::{Deserialize, Serialize};
 use time::Duration;
+use tokio::{signal, task::AbortHandle};
 use tower_sessions::{session_store::ExpiredDeletion, Expiry, Session, SessionManagerLayer};
 use tower_sessions_sqlx_store::{sqlx::SqlitePool, SqliteStore};
 
@@ -37,9 +38,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     let listener = tokio::net::TcpListener::bind(&addr).await?;
-    axum::serve(listener, app.into_make_service()).await?;
+
+    // Ensure we use a shutdown signal to abort the deletion task.
+    axum::serve(listener, app.into_make_service())
+        .with_graceful_shutdown(shutdown_signal(deletion_task.abort_handle()))
+        .await?;
 
     deletion_task.await??;
 
     Ok(())
+}
+
+async fn shutdown_signal(deletion_task_abort_handle: AbortHandle) {
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("failed to install signal handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => { deletion_task_abort_handle.abort() },
+        _ = terminate => { deletion_task_abort_handle.abort() },
+    }
 }
