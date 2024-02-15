@@ -22,6 +22,7 @@ tower-sessions-sqlx-store = { path = "../sqlx-store/", features = [
 tower-sessions-redis-store = { path = "../redis-store/" }
 tower-sessions-mongodb-store = { path = "../mongodb-store/" }
 tower-sessions-moka-store = { path = "../moka-store/" }
+tower-sessions-rusqlite-store = { path = "../rusqlite-store/" }
 
 [[test]]
 name = "test_integration"

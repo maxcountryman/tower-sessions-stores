@@ -1,0 +1,33 @@
+[package]
+name = "tower-sessions-rusqlite-store"
+description = "Rusqlite session store for `tower-sessions`."
+version = "0.10.0"
+edition = "2021"
+authors = ["Patrick Recher <p@tte.io>", "Max Countryman <hello@maxcountryman.com>"]
+license = "MIT"
+homepage = "https://github.com/maxcountryman/tower-sessions-stores"
+keywords = ["axum", "sessions", "cookie", "tower", "rusqlite"]
+categories = ["asynchronous", "network-programming", "web-programming"]
+repository = "https://github.com/maxcountryman/tower-sessions-stores"
+documentation = "https://docs.rs/tower-sessions-rusqlite-store"
+readme = "README.md"
+
+[dependencies]
+async-trait = "0.1.77"
+rmp-serde = "1.1.2"
+rusqlite = { version = "0.30.0" }
+tokio-rusqlite = "0.5.0"
+thiserror = "1.0.56"
+time = "0.3.31"
+tower-sessions-core = { version = "0.10.0", features = ["deletion-task"] }
+
+[dev-dependencies]
+axum = "0.7.1"
+tower-sessions = "0.10.0"
+tokio = { version = "1.32.0", features = ["full"] }
+tokio-test = "0.4.3"
+serde = "1"
+
+[[example]]
+name = "rusqlite"
+
