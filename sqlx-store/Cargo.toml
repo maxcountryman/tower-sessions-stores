@@ -1,7 +1,7 @@
 [package]
 name = "tower-sessions-sqlx-store"
 description = "SQLx session stores for `tower-sessions`."
-version = "0.11.0"
+version = "0.12.0"
 edition = "2021"
 authors = ["Max Countryman <hello@maxcountryman.com>"]
 license = "MIT"
@@ -23,11 +23,11 @@ rmp-serde = "1.1.2"
 sqlx = { version = "0.7.2", features = ["time", "runtime-tokio"] }
 thiserror = "1.0.56"
 time = "0.3.31"
-tower-sessions-core = { version = "0.11.0", features = ["deletion-task"] }
+tower-sessions-core = { version = "0.12.0", features = ["deletion-task"] }
 
 [dev-dependencies]
 axum = "0.7.1"
-tower-sessions = "0.11.0"
+tower-sessions = "0.12.0"
 tokio = { version = "1.32.0", features = ["full"] }
 tokio-test = "0.4.3"
 serde = "1"
