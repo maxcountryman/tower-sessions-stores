@@ -9,7 +9,7 @@ use tower_sessions_core::{
 /// A session store that uses Moka, a fast and concurrent caching library.
 #[derive(Debug, Clone)]
 pub struct MokaStore {
-    cache: Cache<Id, (Record, OffsetDateTime)>,
+    cache: Cache<Id, Record>,
 }
 
 impl MokaStore {
@@ -38,10 +38,16 @@ impl MokaStore {
 
 #[async_trait]
 impl SessionStore for MokaStore {
+    async fn create(&self, record: &mut Record) -> session_store::Result<()> {
+        while self.cache.contains_key(&record.id) {
+            record.id = Id::default();
+        }
+        self.cache.insert(record.id, record.clone()).await;
+        Ok(())
+    }
+
     async fn save(&self, record: &Record) -> session_store::Result<()> {
-        self.cache
-            .insert(record.id, (record.clone(), record.expiry_date))
-            .await;
+        self.cache.insert(record.id, record.clone()).await;
         Ok(())
     }
 
@@ -50,8 +56,7 @@ impl SessionStore for MokaStore {
             .cache
             .get(session_id)
             .await
-            .filter(|(_, expiry_date)| is_active(*expiry_date))
-            .map(|(session, _)| session))
+            .filter(|Record { expiry_date, .. }| is_active(*expiry_date)))
     }
 
     async fn delete(&self, session_id: &Id) -> session_store::Result<()> {
