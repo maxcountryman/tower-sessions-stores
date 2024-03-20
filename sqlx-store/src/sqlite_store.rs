@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use sqlx::sqlite::SqlitePool;
+use sqlx::{sqlite::SqlitePool, SqliteConnection};
 use time::OffsetDateTime;
 use tower_sessions_core::{
     session::{Id, Record},
@@ -47,7 +47,7 @@ impl SqliteStore {
             ));
         }
 
-        self.table_name = table_name.to_owned();
+        table_name.clone_into(&mut self.table_name);
         Ok(self)
     }
 
@@ -65,6 +65,47 @@ impl SqliteStore {
             self.table_name
         );
         sqlx::query(&query).execute(&self.pool).await?;
+        Ok(())
+    }
+
+    async fn id_exists(&self, conn: &mut SqliteConnection, id: &Id) -> session_store::Result<bool> {
+        let query = format!(
+            r#"
+            select exists(select 1 from {table_name} where id = ?)
+            "#,
+            table_name = self.table_name
+        );
+
+        Ok(sqlx::query_scalar(&query)
+            .bind(id.to_string())
+            .fetch_one(conn)
+            .await
+            .map_err(SqlxStoreError::Sqlx)?)
+    }
+
+    async fn save_with_conn(
+        &self,
+        conn: &mut SqliteConnection,
+        record: &Record,
+    ) -> session_store::Result<()> {
+        let query = format!(
+            r#"
+            insert into {table_name}
+              (id, data, expiry_date) values (?, ?, ?)
+            on conflict(id) do update set
+              data = excluded.data,
+              expiry_date = excluded.expiry_date
+            "#,
+            table_name = self.table_name
+        );
+        sqlx::query(&query)
+            .bind(&record.id.to_string())
+            .bind(rmp_serde::to_vec(record).map_err(SqlxStoreError::Encode)?)
+            .bind(record.expiry_date)
+            .execute(conn)
+            .await
+            .map_err(SqlxStoreError::Sqlx)?;
+
         Ok(())
     }
 }
@@ -89,26 +130,22 @@ impl ExpiredDeletion for SqliteStore {
 
 #[async_trait]
 impl SessionStore for SqliteStore {
-    async fn save(&self, record: &Record) -> session_store::Result<()> {
-        let query = format!(
-            r#"
-            insert into {}
-              (id, data, expiry_date) values (?, ?, ?)
-            on conflict(id) do update set
-              data = excluded.data,
-              expiry_date = excluded.expiry_date
-            "#,
-            self.table_name
-        );
-        sqlx::query(&query)
-            .bind(&record.id.to_string())
-            .bind(rmp_serde::to_vec(record).map_err(SqlxStoreError::Encode)?)
-            .bind(record.expiry_date)
-            .execute(&self.pool)
-            .await
-            .map_err(SqlxStoreError::Sqlx)?;
+    async fn create(&self, record: &mut Record) -> session_store::Result<()> {
+        let mut tx = self.pool.begin().await.map_err(SqlxStoreError::Sqlx)?;
+
+        while self.id_exists(&mut tx, &record.id).await? {
+            record.id = Id::default(); // Generate a new ID
+        }
+        self.save_with_conn(&mut tx, record).await?;
+
+        tx.commit().await.map_err(SqlxStoreError::Sqlx)?;
 
         Ok(())
+    }
+
+    async fn save(&self, record: &Record) -> session_store::Result<()> {
+        let mut conn = self.pool.acquire().await.map_err(SqlxStoreError::Sqlx)?;
+        self.save_with_conn(&mut conn, record).await
     }
 
     async fn load(&self, session_id: &Id) -> session_store::Result<Option<Record>> {

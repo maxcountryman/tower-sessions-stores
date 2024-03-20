@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use sqlx::PgPool;
+use sqlx::{PgConnection, PgPool};
 use time::OffsetDateTime;
 use tower_sessions_core::{
     session::{Id, Record},
@@ -50,7 +50,7 @@ impl PostgresStore {
             ));
         }
 
-        self.schema_name = schema_name.to_owned();
+        schema_name.clone_into(&mut self.schema_name);
         Ok(self)
     }
 
@@ -66,7 +66,7 @@ impl PostgresStore {
             ));
         }
 
-        self.table_name = table_name.to_owned();
+        table_name.clone_into(&mut self.table_name);
         Ok(self)
     }
 
@@ -123,6 +123,50 @@ impl PostgresStore {
 
         Ok(())
     }
+
+    async fn id_exists(&self, conn: &mut PgConnection, id: &Id) -> session_store::Result<bool> {
+        let query = format!(
+            r#"
+            select exists(select 1 from "{schema_name}"."{table_name}" where id = $1)
+            "#,
+            schema_name = self.schema_name,
+            table_name = self.table_name
+        );
+
+        Ok(sqlx::query_scalar(&query)
+            .bind(id.to_string())
+            .fetch_one(conn)
+            .await
+            .map_err(SqlxStoreError::Sqlx)?)
+    }
+
+    async fn save_with_conn(
+        &self,
+        conn: &mut PgConnection,
+        record: &Record,
+    ) -> session_store::Result<()> {
+        let query = format!(
+            r#"
+            insert into "{schema_name}"."{table_name}" (id, data, expiry_date)
+            values ($1, $2, $3)
+            on conflict (id) do update
+            set
+              data = excluded.data,
+              expiry_date = excluded.expiry_date
+            "#,
+            schema_name = self.schema_name,
+            table_name = self.table_name
+        );
+        sqlx::query(&query)
+            .bind(&record.id.to_string())
+            .bind(rmp_serde::to_vec(&record).map_err(SqlxStoreError::Encode)?)
+            .bind(record.expiry_date)
+            .execute(conn)
+            .await
+            .map_err(SqlxStoreError::Sqlx)?;
+
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -146,28 +190,22 @@ impl ExpiredDeletion for PostgresStore {
 
 #[async_trait]
 impl SessionStore for PostgresStore {
-    async fn save(&self, record: &Record) -> session_store::Result<()> {
-        let query = format!(
-            r#"
-            insert into "{schema_name}"."{table_name}" (id, data, expiry_date)
-            values ($1, $2, $3)
-            on conflict (id) do update
-            set
-              data = excluded.data,
-              expiry_date = excluded.expiry_date
-            "#,
-            schema_name = self.schema_name,
-            table_name = self.table_name
-        );
-        sqlx::query(&query)
-            .bind(&record.id.to_string())
-            .bind(rmp_serde::to_vec(&record).map_err(SqlxStoreError::Encode)?)
-            .bind(record.expiry_date)
-            .execute(&self.pool)
-            .await
-            .map_err(SqlxStoreError::Sqlx)?;
+    async fn create(&self, record: &mut Record) -> session_store::Result<()> {
+        let mut tx = self.pool.begin().await.map_err(SqlxStoreError::Sqlx)?;
+
+        while self.id_exists(&mut tx, &record.id).await? {
+            record.id = Id::default();
+        }
+        self.save_with_conn(&mut tx, record).await?;
+
+        tx.commit().await.map_err(SqlxStoreError::Sqlx)?;
 
         Ok(())
+    }
+
+    async fn save(&self, record: &Record) -> session_store::Result<()> {
+        let mut conn = self.pool.acquire().await.map_err(SqlxStoreError::Sqlx)?;
+        self.save_with_conn(&mut conn, record).await
     }
 
     async fn load(&self, session_id: &Id) -> session_store::Result<Option<Record>> {
