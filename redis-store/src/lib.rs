@@ -2,7 +2,10 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 pub use fred;
-use fred::{prelude::KeysInterface, types::Expiration};
+use fred::{
+    prelude::KeysInterface,
+    types::{Expiration, SetOptions},
+};
 use time::OffsetDateTime;
 use tower_sessions_core::{
     session::{Id, Record},
@@ -57,6 +60,30 @@ impl<C: KeysInterface + Send + Sync> RedisStore<C> {
     pub fn new(client: C) -> Self {
         Self { client }
     }
+
+    async fn save_with_options(
+        &self,
+        record: &Record,
+        options: Option<SetOptions>,
+    ) -> session_store::Result<bool> {
+        let expire = Some(Expiration::EXAT(OffsetDateTime::unix_timestamp(
+            record.expiry_date,
+        )));
+
+        Ok(self
+            .client
+            .set(
+                record.id.to_string(),
+                rmp_serde::to_vec(&record)
+                    .map_err(RedisStoreError::Encode)?
+                    .as_slice(),
+                expire,
+                options,
+                false,
+            )
+            .await
+            .map_err(RedisStoreError::Redis)?)
+    }
 }
 
 #[async_trait]
@@ -64,24 +91,19 @@ impl<C> SessionStore for RedisStore<C>
 where
     C: KeysInterface + Send + Sync + Debug + 'static,
 {
+    async fn create(&self, record: &mut Record) -> session_store::Result<()> {
+        loop {
+            if !self.save_with_options(record, Some(SetOptions::NX)).await? {
+                record.id = Id::default();
+                continue;
+            }
+            break;
+        }
+        Ok(())
+    }
+
     async fn save(&self, record: &Record) -> session_store::Result<()> {
-        let expire = Some(Expiration::EXAT(OffsetDateTime::unix_timestamp(
-            record.expiry_date,
-        )));
-
-        self.client
-            .set(
-                record.id.to_string(),
-                rmp_serde::to_vec(&record)
-                    .map_err(RedisStoreError::Encode)?
-                    .as_slice(),
-                expire,
-                None,
-                false,
-            )
-            .await
-            .map_err(RedisStoreError::Redis)?;
-
+        self.save_with_options(record, Some(SetOptions::XX)).await?;
         Ok(())
     }
 
