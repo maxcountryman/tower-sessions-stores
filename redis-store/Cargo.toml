@@ -14,7 +14,7 @@ readme = "README.md"
 
 [dependencies]
 async-trait = "0.1.77"
-fred = "8.0.6"
+fred = "9.0.1"
 rmp-serde = "1.1.2"
 thiserror = "1.0.56"
 time = "0.3.31"
