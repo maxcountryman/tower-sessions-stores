@@ -6,6 +6,22 @@
     SQLx session stores for `tower-sessions`.
 </p>
 
+## 🎨 Overview
+
+- **Use the pool**: create a session store by providing
+  your SQLx connection pool.
+- **Compact encoding**: session data is stored in
+  the database using [MessagePack](https://github.com/3Hren/msgpack-rust),
+  a compact self-describing serialization format.
+- **Custom schema and table names**: use the default of
+  `tower_sessions.session` or set your own schema and table names;
+  except for SQLite, in which you can define just the table name.
+- **Migrations**: the database table creation is handled by the
+  `migrate` function on the store, which does just that.
+  Remember to run it to ensure the session table exist.
+  The creation commands use `if not exists` to avoid errors
+  if you have already created the table you need.
+
 ## 🤸 Usage
 
 ### MySQL example
