@@ -219,6 +219,30 @@ macro_rules! route_tests {
         }
 
         #[tokio::test]
+        async fn expired() {
+            let app = $create_app(Some(Duration::seconds(1))).await;
+
+            let req = Request::builder()
+                .uri("/insert")
+                .body(Body::empty())
+                .unwrap();
+            let res = app.clone().oneshot(req).await.unwrap();
+            let session_cookie = get_session_cookie(res.headers()).unwrap();
+
+            // wait 1.1 seconds to be sure
+            tokio::time::sleep(tokio::time::Duration::from_millis(1100)).await;
+
+            let req = Request::builder()
+                .uri("/get_value")
+                .header(header::COOKIE, session_cookie.encoded().to_string())
+                .body(Body::empty())
+                .unwrap();
+            let res = app.oneshot(req).await.unwrap();
+
+            assert_eq!(body_string(res.into_body()).await, "None");
+        }
+
+        #[tokio::test]
         async fn remove_last_value() {
             let app = $create_app(Some(Duration::hours(1))).await;
 
