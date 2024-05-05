@@ -27,5 +27,13 @@ tokio = { version = "1.32.0", features = ["full"] }
 tokio-test = "0.4.3"
 serde = "1"
 
+[features]
+# Enable `fred` TLS support via native-tls
+enable-native-tls = ["fred/enable-native-tls"]
+# Enable `fred` TLS support via rustls with the default crypto backend features
+enable-rustls = ["fred/enable-rustls"]
+# Enable the `openssl/vendored` feature
+vendored-openssl = ["fred/vendored-openssl"]
+
 [[example]]
 name = "redis"
