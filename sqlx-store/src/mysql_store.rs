@@ -147,8 +147,8 @@ impl MySqlStore {
             sqlx::query(&query)
                 .bind(&record.id.to_string())
                 .bind(user_id)
-                .bind(user_agent)
                 .bind(rmp_serde::to_vec(&record).map_err(SqlxStoreError::Encode)?)
+                .bind(user_agent)
                 .bind(record.expiry_date)
                 .execute(conn)
                 .await
