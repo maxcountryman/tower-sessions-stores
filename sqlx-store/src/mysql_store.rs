@@ -14,6 +14,7 @@ pub struct MySqlStore {
     pool: MySqlPool,
     // schema_name: String,
     table_name: String,
+    data_key: String,
 }
 
 impl MySqlStore {
@@ -35,7 +36,13 @@ impl MySqlStore {
             pool,
             // schema_name: "tower_sessions".to_string(),
             table_name: "session".to_string(),
+            data_key: "axum-login.data".to_string(),
         }
+    }
+
+    pub fn with_data_key(mut self, data_key: impl AsRef<str>) -> Self {
+        self.data_key = data_key.as_ref().to_string();
+        self
     }
 
     /// Migrate the session schema.
@@ -131,29 +138,35 @@ impl MySqlStore {
         //     schema_name = self.schema_name,
         //     table_name = self.table_name
         // );
-        let user_id = record.data.get("user_id").map(|v| v.as_str()).flatten();
-        if let Some(user_id) = user_id {
-            let user_agent = record.data.get("user_agent").map(|v| v.as_str()).flatten();
-            let query = format!(
-                r#"
-                insert into `{table_name}`
-                  (id, user_id, data, user_agent, expiry_date) values (?, ?, ?, ?, ?)
-                on duplicate key update
-                  data = values(data),
-                  expiry_date = values(expiry_date)
-                "#,
-                table_name = self.table_name
-            );
-            sqlx::query(&query)
-                .bind(&record.id.to_string())
-                .bind(user_id)
-                .bind(rmp_serde::to_vec(&record).map_err(SqlxStoreError::Encode)?)
-                .bind(user_agent)
-                .bind(record.expiry_date)
-                .execute(conn)
-                .await
-                .map_err(SqlxStoreError::Sqlx)?;
-            Ok(())
+        if let Some(data) = record.data.get(&self.data_key) {
+            let user_id = data.get("user_id").map(|v| v.as_str()).flatten();
+            if let Some(user_id) = user_id {
+                let user_agent = data.get("user_agent").map(|v| v.as_str()).flatten();
+                let query = format!(
+                    r#"
+                    insert into `{table_name}`
+                      (id, user_id, data, user_agent, expiry_date) values (?, ?, ?, ?, ?)
+                    on duplicate key update
+                      data = values(data),
+                      expiry_date = values(expiry_date)
+                    "#,
+                    table_name = self.table_name
+                );
+                sqlx::query(&query)
+                    .bind(&record.id.to_string())
+                    .bind(user_id)
+                    .bind(rmp_serde::to_vec(&record).map_err(SqlxStoreError::Encode)?)
+                    .bind(user_agent)
+                    .bind(record.expiry_date)
+                    .execute(conn)
+                    .await
+                    .map_err(SqlxStoreError::Sqlx)?;
+                Ok(())
+            } else {
+                Err(session_store::Error::Backend(
+                    "No user id in record".to_string(),
+                ))
+            }
         } else {
             Err(session_store::Error::Backend(
                 "No user id in record".to_string(),
