@@ -12,7 +12,7 @@ use crate::SqlxStoreError;
 #[derive(Clone, Debug)]
 pub struct MySqlStore {
     pool: MySqlPool,
-    schema_name: String,
+    // schema_name: String,
     table_name: String,
 }
 
@@ -33,7 +33,7 @@ impl MySqlStore {
     pub fn new(pool: MySqlPool) -> Self {
         Self {
             pool,
-            schema_name: "tower_sessions".to_string(),
+            // schema_name: "tower_sessions".to_string(),
             table_name: "session".to_string(),
         }
     }
@@ -55,22 +55,35 @@ impl MySqlStore {
     pub async fn migrate(&self) -> sqlx::Result<()> {
         let mut tx = self.pool.begin().await?;
 
-        let create_schema_query = format!(
-            "create schema if not exists {schema_name}",
-            schema_name = self.schema_name,
-        );
-        sqlx::query(&create_schema_query).execute(&mut *tx).await?;
+        // let create_schema_query = format!(
+        //     "create schema if not exists {schema_name}",
+        //     schema_name = self.schema_name,
+        // );
+        // sqlx::query(&create_schema_query).execute(&mut *tx).await?;
 
+        // let create_table_query = format!(
+        //     r#"
+        //     create table if not exists `{schema_name}`.`{table_name}`
+        //     (
+        //         id char(22) primary key not null,
+        //         data blob not null,
+        //         expiry_date timestamp(6) not null
+        //     )
+        //     "#,
+        //     schema_name = self.schema_name,
+        //     table_name = self.table_name
+        // );
         let create_table_query = format!(
             r#"
-            create table if not exists `{schema_name}`.`{table_name}`
+            create table if not exists `{table_name}`
             (
                 id char(22) primary key not null,
+                user_id varchar(255) not null,
                 data blob not null,
+                user_agent varchar(255),
                 expiry_date timestamp(6) not null
             )
             "#,
-            schema_name = self.schema_name,
             table_name = self.table_name
         );
         sqlx::query(&create_table_query).execute(&mut *tx).await?;
@@ -81,11 +94,17 @@ impl MySqlStore {
     }
 
     async fn id_exists(&self, conn: &mut MySqlConnection, id: &Id) -> session_store::Result<bool> {
+        // let query = format!(
+        //     r#"
+        //     select exists(select 1 from `{schema_name}`.`{table_name}` where id = ?)
+        //     "#,
+        //     schema_name = self.schema_name,
+        //     table_name = self.table_name
+        // );
         let query = format!(
             r#"
-            select exists(select 1 from `{schema_name}`.`{table_name}` where id = ?)
+            select exists(select 1 from `{table_name}` where id = ?)
             "#,
-            schema_name = self.schema_name,
             table_name = self.table_name
         );
 
@@ -101,37 +120,64 @@ impl MySqlStore {
         conn: &mut MySqlConnection,
         record: &Record,
     ) -> session_store::Result<()> {
-        let query = format!(
-            r#"
-            insert into `{schema_name}`.`{table_name}`
-              (id, data, expiry_date) values (?, ?, ?)
-            on duplicate key update
-              data = values(data),
-              expiry_date = values(expiry_date)
-            "#,
-            schema_name = self.schema_name,
-            table_name = self.table_name
-        );
-        sqlx::query(&query)
-            .bind(&record.id.to_string())
-            .bind(rmp_serde::to_vec(&record).map_err(SqlxStoreError::Encode)?)
-            .bind(record.expiry_date)
-            .execute(conn)
-            .await
-            .map_err(SqlxStoreError::Sqlx)?;
-        Ok(())
+        // let query = format!(
+        //     r#"
+        //     insert into `{schema_name}`.`{table_name}`
+        //       (id, data, expiry_date) values (?, ?, ?)
+        //     on duplicate key update
+        //       data = values(data),
+        //       expiry_date = values(expiry_date)
+        //     "#,
+        //     schema_name = self.schema_name,
+        //     table_name = self.table_name
+        // );
+        let user_id = record.data.get("user_id").map(|v| v.as_str()).flatten();
+        if let Some(user_id) = user_id {
+            let user_agent = record.data.get("user_agent").map(|v| v.as_str()).flatten();
+            let query = format!(
+                r#"
+                insert into `{table_name}`
+                  (id, user_id, data, user_agent, expiry_date) values (?, ?, ?, ?, ?)
+                on duplicate key update
+                  data = values(data),
+                  expiry_date = values(expiry_date)
+                "#,
+                table_name = self.table_name
+            );
+            sqlx::query(&query)
+                .bind(&record.id.to_string())
+                .bind(user_id)
+                .bind(user_agent)
+                .bind(rmp_serde::to_vec(&record).map_err(SqlxStoreError::Encode)?)
+                .bind(record.expiry_date)
+                .execute(conn)
+                .await
+                .map_err(SqlxStoreError::Sqlx)?;
+            Ok(())
+        } else {
+            Err(session_store::Error::Backend(
+                "No user id in record".to_string(),
+            ))
+        }
     }
 }
 
 #[async_trait]
 impl ExpiredDeletion for MySqlStore {
     async fn delete_expired(&self) -> session_store::Result<()> {
+        // let query = format!(
+        //     r#"
+        //     delete from `{schema_name}`.`{table_name}`
+        //     where expiry_date < utc_timestamp()
+        //     "#,
+        //     schema_name = self.schema_name,
+        //     table_name = self.table_name
+        // );
         let query = format!(
             r#"
-            delete from `{schema_name}`.`{table_name}`
+            delete from `{table_name}`
             where expiry_date < utc_timestamp()
             "#,
-            schema_name = self.schema_name,
             table_name = self.table_name
         );
         sqlx::query(&query)
@@ -163,12 +209,19 @@ impl SessionStore for MySqlStore {
     }
 
     async fn load(&self, session_id: &Id) -> session_store::Result<Option<Record>> {
+        // let query = format!(
+        //     r#"
+        //     select data from `{schema_name}`.`{table_name}`
+        //     where id = ? and expiry_date > ?
+        //     "#,
+        //     schema_name = self.schema_name,
+        //     table_name = self.table_name
+        // );
         let query = format!(
             r#"
-            select data from `{schema_name}`.`{table_name}`
+            select data from `{table_name}`
             where id = ? and expiry_date > ?
             "#,
-            schema_name = self.schema_name,
             table_name = self.table_name
         );
         let data: Option<(Vec<u8>,)> = sqlx::query_as(&query)
@@ -188,9 +241,13 @@ impl SessionStore for MySqlStore {
     }
 
     async fn delete(&self, session_id: &Id) -> session_store::Result<()> {
+        // let query = format!(
+        //     r#"delete from `{schema_name}`.`{table_name}` where id = ?"#,
+        //     schema_name = self.schema_name,
+        //     table_name = self.table_name
+        // );
         let query = format!(
-            r#"delete from `{schema_name}`.`{table_name}` where id = ?"#,
-            schema_name = self.schema_name,
+            r#"delete from `{table_name}` where id = ?"#,
             table_name = self.table_name
         );
         sqlx::query(&query)
