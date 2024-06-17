@@ -14,6 +14,7 @@ pub struct PostgresStore {
     pool: PgPool,
     schema_name: String,
     table_name: String,
+    data_key: String,
 }
 
 impl PostgresStore {
@@ -35,6 +36,7 @@ impl PostgresStore {
             pool,
             schema_name: "tower_sessions".to_string(),
             table_name: "session".to_string(),
+            data_key: "axum-login.data".to_string(),
         }
     }
 
@@ -110,7 +112,9 @@ impl PostgresStore {
             create table if not exists "{schema_name}"."{table_name}"
             (
                 id text primary key not null,
+                user_id varchar(255) not null,
                 data bytea not null,
+                user_agent varchar(255),
                 expiry_date timestamptz not null
             )
             "#,
@@ -145,27 +149,44 @@ impl PostgresStore {
         conn: &mut PgConnection,
         record: &Record,
     ) -> session_store::Result<()> {
-        let query = format!(
-            r#"
-            insert into "{schema_name}"."{table_name}" (id, data, expiry_date)
-            values ($1, $2, $3)
-            on conflict (id) do update
-            set
-              data = excluded.data,
-              expiry_date = excluded.expiry_date
-            "#,
-            schema_name = self.schema_name,
-            table_name = self.table_name
-        );
-        sqlx::query(&query)
-            .bind(&record.id.to_string())
-            .bind(rmp_serde::to_vec(&record).map_err(SqlxStoreError::Encode)?)
-            .bind(record.expiry_date)
-            .execute(conn)
-            .await
-            .map_err(SqlxStoreError::Sqlx)?;
+        if let Some(data) = record.data.get(&self.data_key) {
+            let user_id = data.get("user_id").and_then(|v| v.as_str());
+            if let Some(user_id) = user_id {
+                let user_agent = data.get("user_agent").and_then(|v| v.as_str());
 
-        Ok(())
+                let query = format!(
+                    r#"
+                    insert into "{schema_name}"."{table_name}" (id, user_id, data, user_agent, expiry_date)
+                    values ($1, $2, $3, $4, $5)
+                    on conflict (id) do update
+                    set
+                      data = excluded.data,
+                      expiry_date = excluded.expiry_date
+                    "#,
+                    schema_name = self.schema_name,
+                    table_name = self.table_name
+                );
+                sqlx::query(&query)
+                    .bind(&record.id.to_string())
+                    .bind(user_id)
+                    .bind(rmp_serde::to_vec(&record).map_err(SqlxStoreError::Encode)?)
+                    .bind(user_agent)
+                    .bind(record.expiry_date)
+                    .execute(conn)
+                    .await
+                    .map_err(SqlxStoreError::Sqlx)?;
+
+                Ok(())
+            } else {
+                Err(session_store::Error::Backend(
+                    "No user id in record".to_string(),
+                ))
+            }
+        } else {
+            Err(session_store::Error::Backend(
+                "No user id in record".to_string(),
+            ))
+        }
     }
 }
 
