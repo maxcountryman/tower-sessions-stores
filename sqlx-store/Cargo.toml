@@ -20,7 +20,7 @@ mysql = ["sqlx/mysql"]
 [dependencies]
 async-trait = "0.1.77"
 rmp-serde = "1.1.2"
-sqlx = { version = "0.7.2", features = ["time", "runtime-tokio"] }
+sqlx = { version = "0.8.0", features = ["time", "runtime-tokio"] }
 thiserror = "1.0.56"
 time = "0.3.31"
 tower-sessions-core = { version = "0.12.1", features = ["deletion-task"] }
