@@ -3,8 +3,16 @@ version: "3"
 services:
   mongodb_store:
     image: mongo
+    command: mongod --replSet rs0
     ports:
       - "27017:27017"
+    healthcheck:
+      test: echo "try { rs.status() } catch (err) { rs.initiate() }" | mongosh --port 27017 --quiet
+      interval: 5s
+      timeout: 30s
+      start_period: 0s
+      start_interval: 1s
+      retries: 5
 
   redis_store:
     image: redis
