@@ -145,7 +145,7 @@ impl MySqlStore {
             table_name = self.table_name
         );
         sqlx::query(&query)
-            .bind(&record.id.to_string())
+            .bind(record.id.to_string())
             .bind(rmp_serde::to_vec(&record).map_err(SqlxStoreError::Encode)?)
             .bind(record.expiry_date)
             .execute(conn)
@@ -226,7 +226,7 @@ impl SessionStore for MySqlStore {
             table_name = self.table_name
         );
         sqlx::query(&query)
-            .bind(&session_id.to_string())
+            .bind(session_id.to_string())
             .execute(&self.pool)
             .await
             .map_err(SqlxStoreError::Sqlx)?;
