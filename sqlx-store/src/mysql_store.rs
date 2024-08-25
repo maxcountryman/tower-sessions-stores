@@ -38,6 +38,38 @@ impl MySqlStore {
         }
     }
 
+    /// Set the session table schema name with the provided name.
+    pub fn with_schema_name(mut self, schema_name: impl AsRef<str>) -> Result<Self, String> {
+        let schema_name = schema_name.as_ref();
+        if !is_valid_identifier(schema_name) {
+            return Err(format!(
+                "Invalid schema name '{}'. Schema names must start with a letter or underscore \
+                 (including letters with diacritical marks and non-Latin letters).Subsequent \
+                 characters can be letters, underscores, digits (0-9), or dollar signs ($).",
+                schema_name
+            ));
+        }
+
+        schema_name.clone_into(&mut self.schema_name);
+        Ok(self)
+    }
+
+    /// Set the session table name with the provided name.
+    pub fn with_table_name(mut self, table_name: impl AsRef<str>) -> Result<Self, String> {
+        let table_name = table_name.as_ref();
+        if !is_valid_identifier(table_name) {
+            return Err(format!(
+                "Invalid table name '{}'. Table names must start with a letter or underscore \
+                 (including letters with diacritical marks and non-Latin letters).Subsequent \
+                 characters can be letters, underscores, digits (0-9), or dollar signs ($).",
+                table_name
+            ));
+        }
+
+        table_name.clone_into(&mut self.table_name);
+        Ok(self)
+    }
+
     /// Migrate the session schema.
     ///
     /// # Examples
@@ -113,7 +145,7 @@ impl MySqlStore {
             table_name = self.table_name
         );
         sqlx::query(&query)
-            .bind(&record.id.to_string())
+            .bind(record.id.to_string())
             .bind(rmp_serde::to_vec(&record).map_err(SqlxStoreError::Encode)?)
             .bind(record.expiry_date)
             .execute(conn)
@@ -194,11 +226,28 @@ impl SessionStore for MySqlStore {
             table_name = self.table_name
         );
         sqlx::query(&query)
-            .bind(&session_id.to_string())
+            .bind(session_id.to_string())
             .execute(&self.pool)
             .await
             .map_err(SqlxStoreError::Sqlx)?;
 
         Ok(())
     }
+}
+
+/// A valid MySQL identifier must start with a letter or underscore
+/// (including letters with diacritical marks and non-Latin letters). Subsequent
+/// characters in an identifier or keyword can be letters, underscores, digits
+/// (0-9), or dollar signs ($).
+/// See https://dev.mysql.com/doc/refman/8.4/en/identifiers.html for details.
+fn is_valid_identifier(name: &str) -> bool {
+    !name.is_empty()
+        && name
+            .chars()
+            .next()
+            .map(|c| c.is_alphabetic() || c == '_')
+            .unwrap_or_default()
+        && name
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '$')
 }
