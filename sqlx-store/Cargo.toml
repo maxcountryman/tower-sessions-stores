@@ -13,16 +13,21 @@ documentation = "https://docs.rs/tower-sessions-sqlx-store"
 readme = "README.md"
 
 [features]
+default = ["time"]
 sqlite = ["sqlx/sqlite"]
 postgres = ["sqlx/postgres"]
 mysql = ["sqlx/mysql"]
 
+time = ["sqlx/time", "dep:time"]
+chrono = ["sqlx/chrono", "dep:chrono"]
+
 [dependencies]
 async-trait = "0.1.77"
 rmp-serde = "1.1.2"
-sqlx = { version = "0.8.0", features = ["time", "runtime-tokio"] }
+sqlx = { version = "0.8.0", features = ["runtime-tokio"] }
 thiserror = "1.0.56"
-time = "0.3.31"
+time = { version = "0.3.31", optional = true }
+chrono = { version = "0.4.38", optional = true }
 tower-sessions-core = { version = "0.12.1", features = ["deletion-task"] }
 
 [dev-dependencies]
@@ -34,12 +39,12 @@ serde = "1"
 
 [[example]]
 name = "sqlite"
-required-features = ["sqlite"]
+required-features = ["sqlite", "time"]
 
 [[example]]
 name = "postgres"
-required-features = ["postgres"]
+required-features = ["postgres", "time"]
 
 [[example]]
 name = "mysql"
-required-features = ["mysql"]
+required-features = ["mysql", "time"]
