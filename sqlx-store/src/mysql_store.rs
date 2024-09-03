@@ -1,11 +1,12 @@
 use async_trait::async_trait;
 use sqlx::{MySqlConnection, MySqlPool};
+use time::OffsetDateTime;
 use tower_sessions_core::{
     session::{Id, Record},
     session_store, ExpiredDeletion, SessionStore,
 };
 
-use crate::{convert_expiry_date, current_time, SqlxStoreError};
+use crate::SqlxStoreError;
 
 /// A MySQL session store.
 #[derive(Clone, Debug)]
@@ -146,7 +147,7 @@ impl MySqlStore {
         sqlx::query(&query)
             .bind(record.id.to_string())
             .bind(rmp_serde::to_vec(&record).map_err(SqlxStoreError::Encode)?)
-            .bind(convert_expiry_date(record.expiry_date))
+            .bind(record.expiry_date)
             .execute(conn)
             .await
             .map_err(SqlxStoreError::Sqlx)?;
@@ -204,7 +205,7 @@ impl SessionStore for MySqlStore {
         );
         let data: Option<(Vec<u8>,)> = sqlx::query_as(&query)
             .bind(session_id.to_string())
-            .bind(current_time())
+            .bind(OffsetDateTime::now_utc())
             .fetch_optional(&self.pool)
             .await
             .map_err(SqlxStoreError::Sqlx)?;

@@ -18,7 +18,6 @@ tower-sessions-sqlx-store = { path = "../sqlx-store/", features = [
     "sqlite",
     "mysql",
     "postgres",
-    "time",
 ] }
 tower-sessions-redis-store = { path = "../redis-store/" }
 tower-sessions-mongodb-store = { path = "../mongodb-store/" }
