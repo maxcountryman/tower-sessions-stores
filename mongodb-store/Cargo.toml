@@ -24,7 +24,7 @@ tower-sessions-core = { version = "0.12.1", features = ["deletion-task"] }
 
 [dev-dependencies]
 axum = "0.7.1"
-tower-sessions = "0.12.1"
+tower-sessions = "0.13.0"
 tokio = { version = "1.32.0", features = ["full"] }
 tokio-test = "0.4.3"
 serde = "1"
