@@ -116,7 +116,7 @@ impl ExpiredDeletion for SqliteStore {
         let query = format!(
             r#"
             delete from {table_name}
-            WHERE datetime(expiry_date) < datetime('now')
+            where datetime(expiry_date) < datetime('now')
             "#,
             table_name = self.table_name
         );
