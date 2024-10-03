@@ -124,7 +124,8 @@ where
     }
 
     async fn delete(&self, session_id: &Id) -> session_store::Result<()> {
-        self.client
+        let _: () = self
+            .client
             .del(session_id.to_string())
             .await
             .map_err(RedisStoreError::Redis)?;
