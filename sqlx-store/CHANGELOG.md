@@ -1,5 +1,9 @@
 # Unreleased
 
+# 0.14.2
+
+- Address SQLite "database locked" error #52
+
 # 0.14.1
 
 - Fix SQLite expiration #50
