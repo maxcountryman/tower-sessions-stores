@@ -1,5 +1,8 @@
 # Unreleased
 
+- Update `fred` to `10.0`.
+- Update `this-error` to `2.0`.
+
 # 0.14.0
 
 - Update `tower-sessions` to `0.11.0`

@@ -30,7 +30,7 @@ async fn handler(session: Session) -> impl IntoResponse {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let pool = RedisPool::new(RedisConfig::default(), None, None, None, 6)?;
+    let pool = Pool::new(Config::default(), None, None, None, 6)?;
 
     let redis_conn = pool.connect();
     pool.wait_for_connect().await?;

@@ -29,8 +29,8 @@ mod redis_store_tests {
     async fn app(max_age: Option<Duration>) -> Router {
         let database_url = std::option_env!("REDIS_URL").unwrap();
 
-        let config = RedisConfig::from_url(database_url).unwrap();
-        let pool = RedisPool::new(config, None, None, None, 6).unwrap();
+        let config = Config::from_url(database_url).unwrap();
+        let pool = Pool::new(config, None, None, None, 6).unwrap();
 
         pool.connect();
         pool.wait_for_connect().await.unwrap();

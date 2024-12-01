@@ -15,7 +15,7 @@ use tower_sessions_core::{
 #[derive(Debug, thiserror::Error)]
 pub enum RedisStoreError {
     #[error(transparent)]
-    Redis(#[from] fred::error::RedisError),
+    Redis(#[from] fred::error::Error),
 
     #[error(transparent)]
     Decode(#[from] rmp_serde::decode::Error),
@@ -49,7 +49,7 @@ impl<C: KeysInterface + Send + Sync> RedisStore<C> {
     /// use tower_sessions_redis_store::{fred::prelude::*, RedisStore};
     ///
     /// # tokio_test::block_on(async {
-    /// let pool = RedisPool::new(RedisConfig::default(), None, None, None, 6).unwrap();
+    /// let pool = Pool::new(Config::default(), None, None, None, 6).unwrap();
     ///
     /// let _ = pool.connect();
     /// pool.wait_for_connect().await.unwrap();
