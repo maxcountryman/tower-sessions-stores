@@ -1,7 +1,9 @@
 # Unreleased
 
-- Update `fred` to `10.0`.
-- Update `this-error` to `2.0`.
+# 0.15.0
+
+- Update `fred` to `10.0.0`.
+- Update `this-error` to `2.0.0`.
 
 # 0.14.0
 
