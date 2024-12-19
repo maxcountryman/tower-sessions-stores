@@ -55,12 +55,13 @@ impl SqliteStore {
     pub async fn migrate(&self) -> sqlx::Result<()> {
         let query = format!(
             r#"
-            create table if not exists {}
+            create table if not exists {0}
             (
-                id text primary key not null,
+                id text not null,
                 data blob not null,
-                expiry_date integer not null
-            )
+                expiry_date integer not null,
+                primary key (id, expiry_date)
+            ) without rowid
             "#,
             self.table_name
         );
