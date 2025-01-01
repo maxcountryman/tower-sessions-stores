@@ -1,5 +1,9 @@
 # Unreleased
 
+# 0.15.0
+
+- Update `tower-sessions` to `0.14.0`
+
 # 0.14.2
 
 - Address SQLite "database locked" error #52

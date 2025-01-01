@@ -1,7 +1,7 @@
 [package]
 name = "tower-sessions-moka-store"
 description = "Moka session store for `tower-sessions`."
-version = "0.14.0"
+version = "0.15.0"
 edition = "2021"
 authors = ["Max Countryman <hello@maxcountryman.com>"]
 license = "MIT"
@@ -16,11 +16,11 @@ readme = "README.md"
 async-trait = "0.1.77"
 moka = { version = "0.12.0", features = ["future"] }
 time = "0.3.31"
-tower-sessions-core = "0.13.0"
+tower-sessions-core = "0.14.0"
 
 [dev-dependencies]
-axum = "0.7.1"
-tower-sessions = "0.13.0"
+axum = "0.8.1"
+tower-sessions = "0.14.0"
 tower-sessions-sqlx-store = { path = "../sqlx-store/", features = ["sqlite"] }
 tokio = { version = "1.32.0", features = ["full"] }
 tokio-test = "0.4.3"
