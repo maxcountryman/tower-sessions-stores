@@ -1,5 +1,9 @@
 # Unreleased
 
+# 0.16.0
+
+- Update `tower-sessions` to `0.14.0`
+
 # 0.15.0
 
 - Update `fred` to `10.0.0`.
