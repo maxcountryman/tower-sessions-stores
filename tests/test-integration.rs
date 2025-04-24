@@ -30,10 +30,22 @@ mod redis_store_tests {
         let database_url = std::option_env!("REDIS_URL").unwrap();
 
         let config = Config::from_url(database_url).unwrap();
-        let pool = Pool::new(config, None, None, None, 6).unwrap();
 
-        pool.connect();
-        pool.wait_for_connect().await.unwrap();
+        #[cfg(not(feature = "dynamic-pool"))]
+        let pool = {
+            let pool = Pool::new(config, None, None, None, 6).unwrap();
+            pool.connect();
+            pool.wait_for_connect().await.unwrap();
+            pool
+        };
+
+        #[cfg(feature = "dynamic-pool")]
+        let pool = {
+            let pool = DynamicPool::new(config, None, None, None, Default::default()).unwrap();
+            pool.init().await.unwrap();
+            pool.start_scale_task(std::time::Duration::from_secs(10));
+            pool
+        };
 
         let session_store = RedisStore::new(pool);
         let session_manager = SessionManagerLayer::new(session_store).with_secure(true);

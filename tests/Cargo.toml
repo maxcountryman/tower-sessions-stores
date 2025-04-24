@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 
+[features]
+dynamic-pool = ["tower-sessions-redis-store/dynamic-pool"]
+
 [dev-dependencies]
 axum = "0.8.1"
 http = "1.0"
