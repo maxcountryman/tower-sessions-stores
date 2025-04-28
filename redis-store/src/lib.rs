@@ -38,6 +38,7 @@ impl From<RedisStoreError> for session_store::Error {
 #[derive(Debug, Clone, Default)]
 pub struct RedisStore<C: KeysInterface + Send + Sync> {
     client: C,
+    prefix: Option<String>,
 }
 
 impl<C: KeysInterface + Send + Sync> RedisStore<C> {
@@ -58,7 +59,35 @@ impl<C: KeysInterface + Send + Sync> RedisStore<C> {
     /// })
     /// ```
     pub fn new(client: C) -> Self {
-        Self { client }
+        Self { client, prefix: None }
+    }
+
+    /// Create a new Redis store with the provided client and prefix.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// use tower_sessions_redis_store::{fred::prelude::*, RedisStore};
+    ///
+    /// # tokio_test::block_on(async {
+    /// let pool = Pool::new(Config::default(), None, None, None, 6).unwrap();
+    ///
+    /// let _ = pool.connect();
+    /// pool.wait_for_connect().await.unwrap();
+    ///
+    /// let session_store = RedisStore::with_prefix(pool, "session:".to_string());
+    /// })
+    /// ```
+    pub fn with_prefix(client: C, prefix: String) -> Self {
+        Self { client, prefix: Some(prefix) }
+    }
+
+    fn get_key(&self, id: &Id) -> String {
+        if let Some(prefix) = &self.prefix {
+            format!("{}{}", prefix, id)
+        } else {
+            id.to_string()
+        }
     }
 
     async fn save_with_options(
@@ -73,7 +102,7 @@ impl<C: KeysInterface + Send + Sync> RedisStore<C> {
         Ok(self
             .client
             .set(
-                record.id.to_string(),
+                self.get_key(&record.id),
                 rmp_serde::to_vec(&record)
                     .map_err(RedisStoreError::Encode)?
                     .as_slice(),
@@ -110,7 +139,7 @@ where
     async fn load(&self, session_id: &Id) -> session_store::Result<Option<Record>> {
         let data = self
             .client
-            .get::<Option<Vec<u8>>, _>(session_id.to_string())
+            .get::<Option<Vec<u8>>, _>(self.get_key(session_id))
             .await
             .map_err(RedisStoreError::Redis)?;
 
@@ -126,7 +155,7 @@ where
     async fn delete(&self, session_id: &Id) -> session_store::Result<()> {
         let _: () = self
             .client
-            .del(session_id.to_string())
+            .del(self.get_key(session_id))
             .await
             .map_err(RedisStoreError::Redis)?;
         Ok(())
