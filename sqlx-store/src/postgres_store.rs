@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 use sqlx::{PgConnection, PgPool};
-use time::OffsetDateTime;
 use tower_sessions_core::{
     session::{Id, Record},
     session_store, ExpiredDeletion, SessionStore,
 };
 
+use crate::time::{now, ExpirationTime};
 use crate::SqlxStoreError;
 
 /// A PostgreSQL session store.
@@ -160,7 +160,7 @@ impl PostgresStore {
         sqlx::query(&query)
             .bind(record.id.to_string())
             .bind(rmp_serde::to_vec(&record).map_err(SqlxStoreError::Encode)?)
-            .bind(record.expiry_date)
+            .bind(record.expiry_date()?)
             .execute(conn)
             .await
             .map_err(SqlxStoreError::Sqlx)?;
@@ -219,7 +219,7 @@ impl SessionStore for PostgresStore {
         );
         let record_value: Option<(Vec<u8>,)> = sqlx::query_as(&query)
             .bind(session_id.to_string())
-            .bind(OffsetDateTime::now_utc())
+            .bind(now())
             .fetch_optional(&self.pool)
             .await
             .map_err(SqlxStoreError::Sqlx)?;

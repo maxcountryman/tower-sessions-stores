@@ -1,5 +1,13 @@
+#![cfg(all(
+    any(feature = "sqlx-time", feature = "sqlx-chrono"),
+    not(all(feature = "sqlx-time", feature = "sqlx-chrono"))
+))]
+
 pub use sqlx;
 use tower_sessions_core::session_store;
+
+#[cfg(any(feature = "sqlite", feature = "postgres", feature = "mysql"))]
+mod time;
 
 #[cfg(feature = "mysql")]
 #[cfg_attr(docsrs, doc(cfg(feature = "mysql")))]

@@ -13,23 +13,37 @@ documentation = "https://docs.rs/tower-sessions-sqlx-store"
 readme = "README.md"
 
 [features]
+default = ["sqlx-time"]
+
+sqlx-time = [
+    "time",
+    "sqlx/time",
+]
+
+sqlx-chrono = [
+    "chrono",
+    "sqlx/chrono",
+]
+
 sqlite = ["sqlx/sqlite"]
 postgres = ["sqlx/postgres"]
 mysql = ["sqlx/mysql"]
 
 [dependencies]
-async-trait = "0.1.77"
-rmp-serde = "1.1.2"
-sqlx = { version = "0.8.0", features = ["time", "runtime-tokio"] }
-thiserror = "1.0.56"
-time = "0.3.31"
-tower-sessions-core = { version = "0.14.0", features = ["deletion-task"] }
+async-trait = "0.1"
+chrono = { version = "0.4", optional = true }
+rmp-serde = "1.3"
+sqlx = { version = "0.8", features = ["runtime-tokio"] }
+thiserror = "2.0"
+time = { version = "0.3", optional = true }
+tower-sessions-core = { version = "0.14", features = ["deletion-task"] }
 
 [dev-dependencies]
-axum = "0.8.1"
+axum = "0.8.4"
+time = { version = "0.3" }
 tower-sessions = "0.14.0"
-tokio = { version = "1.32.0", features = ["full"] }
-tokio-test = "0.4.3"
+tokio = { version = "1.46.1", features = ["full"] }
+tokio-test = "0.4.4"
 serde = "1"
 
 [[example]]
