@@ -1,12 +1,12 @@
 use async_trait::async_trait;
 use sqlx::{sqlite::SqlitePool, SqliteConnection};
-use time::OffsetDateTime;
 use tower_sessions_core::{
     session::{Id, Record},
     session_store::{self, ExpiredDeletion},
     SessionStore,
 };
 
+use crate::time::{now, ExpirationTime};
 use crate::SqlxStoreError;
 
 /// A SQLite session store.
@@ -83,7 +83,7 @@ impl SqliteStore {
         let res = sqlx::query(&query)
             .bind(record.id.to_string())
             .bind(rmp_serde::to_vec(record).map_err(SqlxStoreError::Encode)?)
-            .bind(record.expiry_date)
+            .bind(record.expiry_date()?)
             .execute(conn)
             .await;
 
@@ -112,7 +112,7 @@ impl SqliteStore {
         sqlx::query(&query)
             .bind(record.id.to_string())
             .bind(rmp_serde::to_vec(record).map_err(SqlxStoreError::Encode)?)
-            .bind(record.expiry_date)
+            .bind(record.expiry_date()?)
             .execute(conn)
             .await
             .map_err(SqlxStoreError::Sqlx)?;
@@ -168,7 +168,7 @@ impl SessionStore for SqliteStore {
         );
         let data: Option<(Vec<u8>,)> = sqlx::query_as(&query)
             .bind(session_id.to_string())
-            .bind(OffsetDateTime::now_utc())
+            .bind(now())
             .fetch_optional(&self.pool)
             .await
             .map_err(SqlxStoreError::Sqlx)?;
