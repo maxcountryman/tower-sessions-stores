@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use bson::{doc, to_document};
 pub use mongodb;
-use mongodb::{options::UpdateOptions, Client, Collection};
+use mongodb::{options::UpdateOptions, Client, ClientSession, Collection};
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use tower_sessions_core::{
@@ -53,6 +53,7 @@ struct MongoDBSessionRecord {
 /// A MongoDB session store.
 #[derive(Clone, Debug)]
 pub struct MongoDBStore {
+    client: Client,
     collection: Collection<MongoDBSessionRecord>,
 }
 
@@ -73,7 +74,48 @@ impl MongoDBStore {
     pub fn new(client: Client, database: String) -> Self {
         Self {
             collection: client.database(&database).collection("sessions"),
+            client,
         }
+    }
+
+    async fn id_exists(
+        &self,
+        session: &mut ClientSession,
+        record: &Record,
+    ) -> session_store::Result<bool> {
+        Ok(self
+            .collection
+            .find_one_with_session(doc! { "_id": record.id.to_string() }, None, session)
+            .await
+            .map_err(MongoDBStoreError::MongoDB)?
+            .is_some())
+    }
+
+    async fn save_with_session(
+        &self,
+        session: &mut ClientSession,
+        record: &Record,
+    ) -> session_store::Result<()> {
+        let doc = to_document(&MongoDBSessionRecord {
+            data: bson::Binary {
+                subtype: bson::spec::BinarySubtype::Generic,
+                bytes: rmp_serde::to_vec(record).map_err(MongoDBStoreError::Encode)?,
+            },
+            expiry_date: bson::DateTime::from(record.expiry_date),
+        })
+        .map_err(MongoDBStoreError::BsonSerialize)?;
+
+        self.collection
+            .update_one_with_session(
+                doc! { "_id": record.id.to_string() },
+                doc! { "$set": doc },
+                UpdateOptions::builder().upsert(true).build(),
+                session,
+            )
+            .await
+            .map_err(MongoDBStoreError::MongoDB)?;
+
+        Ok(())
     }
 }
 
@@ -94,22 +136,48 @@ impl ExpiredDeletion for MongoDBStore {
 
 #[async_trait]
 impl SessionStore for MongoDBStore {
-    async fn save(&self, record: &Record) -> session_store::Result<()> {
-        let doc = to_document(&MongoDBSessionRecord {
-            data: bson::Binary {
-                subtype: bson::spec::BinarySubtype::Generic,
-                bytes: rmp_serde::to_vec(record).map_err(MongoDBStoreError::Encode)?,
-            },
-            expiry_date: bson::DateTime::from(record.expiry_date),
-        })
-        .map_err(MongoDBStoreError::BsonSerialize)?;
+    async fn create(&self, record: &mut Record) -> session_store::Result<()> {
+        let mut session = self
+            .client
+            .start_session(None)
+            .await
+            .map_err(MongoDBStoreError::MongoDB)?;
 
-        self.collection
-            .update_one(
-                doc! { "_id": record.id.to_string() },
-                doc! { "$set": doc },
-                UpdateOptions::builder().upsert(true).build(),
-            )
+        session
+            .start_transaction(None)
+            .await
+            .map_err(MongoDBStoreError::MongoDB)?;
+
+        while self.id_exists(&mut session, record).await? {
+            record.id = Id::default();
+        }
+
+        self.save_with_session(&mut session, record).await?;
+
+        session
+            .commit_transaction()
+            .await
+            .map_err(MongoDBStoreError::MongoDB)?;
+
+        Ok(())
+    }
+
+    async fn save(&self, record: &Record) -> session_store::Result<()> {
+        let mut session = self
+            .client
+            .start_session(None)
+            .await
+            .map_err(MongoDBStoreError::MongoDB)?;
+
+        session
+            .start_transaction(None)
+            .await
+            .map_err(MongoDBStoreError::MongoDB)?;
+
+        self.save_with_session(&mut session, record).await?;
+
+        session
+            .commit_transaction()
             .await
             .map_err(MongoDBStoreError::MongoDB)?;
 
