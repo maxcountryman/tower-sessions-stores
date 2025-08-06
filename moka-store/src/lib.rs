@@ -1,3 +1,5 @@
+pub use time;
+
 use std::time::{Duration as StdDuration, Instant as StdInstant};
 
 use async_trait::async_trait;

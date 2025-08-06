@@ -1,4 +1,5 @@
 pub use sqlx;
+pub use time;
 use tower_sessions_core::session_store;
 
 #[cfg(feature = "mysql")]
