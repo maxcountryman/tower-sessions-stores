@@ -99,7 +99,7 @@ impl<C: KeysInterface + Send + Sync> RedisStore<C> {
             record.expiry_date,
         )));
 
-        Ok(self
+        let result: Option<String> = self
             .client
             .set(
                 self.get_key(&record.id),
@@ -111,7 +111,9 @@ impl<C: KeysInterface + Send + Sync> RedisStore<C> {
                 false,
             )
             .await
-            .map_err(RedisStoreError::Redis)?)
+            .map_err(RedisStoreError::Redis)?;
+
+        Ok(result.is_some())
     }
 }
 
