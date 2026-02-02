@@ -59,7 +59,10 @@ impl<C: KeysInterface + Send + Sync> RedisStore<C> {
     /// })
     /// ```
     pub fn new(client: C) -> Self {
-        Self { client, prefix: None }
+        Self {
+            client,
+            prefix: None,
+        }
     }
 
     /// Create a new Redis store with the provided client and prefix.
@@ -79,7 +82,10 @@ impl<C: KeysInterface + Send + Sync> RedisStore<C> {
     /// })
     /// ```
     pub fn with_prefix(client: C, prefix: String) -> Self {
-        Self { client, prefix: Some(prefix) }
+        Self {
+            client,
+            prefix: Some(prefix),
+        }
     }
 
     fn get_key(&self, id: &Id) -> String {
