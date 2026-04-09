@@ -18,7 +18,7 @@ bson = { version = "2.7.0", features = ["time-0_3"] }
 mongodb = { version = "2.7.0" }
 rmp-serde = "1.1.2"
 serde = "1.0.195"
-thiserror = "1.0.56"
+thiserror = "2.0.18"
 time = "0.3.31"
 tower-sessions-core = { version = "0.15.0", features = ["deletion-task"] }
 
