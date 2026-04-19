@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 pub use mongodb;
-use mongodb::bson::{doc, to_document};
+use mongodb::bson::doc;
 use mongodb::{Client, Collection};
 use serde::{Deserialize, Serialize};
 use std::time::SystemTime;
@@ -45,10 +45,31 @@ impl From<MongoDBStoreError> for session_store::Error {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct MongoDBSessionRecord {
+<<<<<<< HEAD
     data: mongodb::bson::Binary,
+=======
+    #[serde(rename = "_id")]
+    id: String,
+
+    data: bson::Binary,
+>>>>>>> 714839d (add mongodb create)
 
     #[serde(rename = "expireAt")]
     expiry_date: mongodb::bson::DateTime,
+}
+
+impl TryFrom<&Record> for MongoDBSessionRecord {
+    type Error = MongoDBStoreError;
+    fn try_from(record: &Record) -> Result<Self, MongoDBStoreError> {
+        Ok(MongoDBSessionRecord {
+            id: record.id.to_string(),
+            data: bson::Binary {
+                subtype: bson::spec::BinarySubtype::Generic,
+                bytes: rmp_serde::to_vec(record).map_err(MongoDBStoreError::Encode)?,
+            },
+            expiry_date: bson::DateTime::from(record.expiry_date),
+        })
+    }
 }
 
 /// A MongoDB session store.
@@ -94,21 +115,37 @@ impl ExpiredDeletion for MongoDBStore {
 
 #[async_trait]
 impl SessionStore for MongoDBStore {
+    async fn create(&self, record: &mut Record) -> session_store::Result<()> {
+        loop {
+            let mongo_record: MongoDBSessionRecord = (&*record).try_into()?;
+
+            let result = self.collection
+                .insert_one(mongo_record)
+                .await;
+
+            match result {
+                Ok(_) => return Ok(()),
+                Err(err) if matches!(*err.kind,
+                    mongodb::error::ErrorKind::Write(
+                        mongodb::error::WriteFailure::WriteError(
+                            mongodb::error::WriteError { code: 11000, .. } // duplicate key
+                        )
+                    )
+                ) => {},
+                Err(err) => return Err(MongoDBStoreError::MongoDB(err).into()),
+            };
+
+            record.id = Id::default();
+        }
+    }
+
     async fn save(&self, record: &Record) -> session_store::Result<()> {
-        let expiry_date = mongodb::bson::DateTime::from(SystemTime::from(record.expiry_date));
-        let doc = to_document(&MongoDBSessionRecord {
-            data: mongodb::bson::Binary {
-                subtype: mongodb::bson::spec::BinarySubtype::Generic,
-                bytes: rmp_serde::to_vec(record).map_err(MongoDBStoreError::Encode)?,
-            },
-            expiry_date,
-        })
-        .map_err(MongoDBStoreError::BsonSerialize)?;
+        let mongo_record: MongoDBSessionRecord = record.try_into()?;
 
         self.collection
-            .update_one(
+            .replace_one(
                 doc! { "_id": record.id.to_string() },
-                doc! { "$set": doc },
+                mongo_record,
             )
             .upsert(true)
             .await
