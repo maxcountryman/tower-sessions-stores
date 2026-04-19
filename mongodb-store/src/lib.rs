@@ -106,7 +106,10 @@ impl SessionStore for MongoDBStore {
         .map_err(MongoDBStoreError::BsonSerialize)?;
 
         self.collection
-            .update_one(doc! { "_id": record.id.to_string() }, doc! { "$set": doc })
+            .update_one(
+                doc! { "_id": record.id.to_string() },
+                doc! { "$set": doc },
+            )
             .upsert(true)
             .await
             .map_err(MongoDBStoreError::MongoDB)?;
