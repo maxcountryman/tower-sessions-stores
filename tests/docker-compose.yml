@@ -1,22 +1,21 @@
-version: "3"
 
 services:
   mongodb_store:
-    image: mongo
+    image: mongodb/mongodb-community-server:latest-slim
     ports:
-      - "27017:27017"
+      - "127.0.0.1:27017:27017"
 
   redis_store:
-    image: redis
+    image: redis:alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
 
   postgres_store:
-    image: postgres
+    image: postgres:alpine
     environment:
       POSTGRES_PASSWORD: "postgres"
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
 
   mysql_store:
     image: mysql
@@ -24,4 +23,4 @@ services:
       - MYSQL_ALLOW_EMPTY_PASSWORD=true
       - MYSQL_DATABASE=public
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
