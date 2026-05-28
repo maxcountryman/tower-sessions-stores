@@ -70,6 +70,14 @@ impl MySqlStore {
         Ok(self)
     }
 
+    fn fmt_sql(&self, sql: &str) -> sqlx::AssertSqlSafe<String> {
+        // sql safety: `table_name` and `schema_name` are trusted parameters, and bindings can't be used as identifiers.
+        sqlx::AssertSqlSafe(
+            sql.replace("{table_name}", &self.table_name)
+                .replace("{schema_name}", &self.schema_name),
+        )
+    }
+
     /// Migrate the session schema.
     ///
     /// # Examples
@@ -87,13 +95,10 @@ impl MySqlStore {
     pub async fn migrate(&self) -> sqlx::Result<()> {
         let mut tx = self.pool.begin().await?;
 
-        let create_schema_query = format!(
-            "create schema if not exists {schema_name}",
-            schema_name = self.schema_name,
-        );
-        sqlx::query(&create_schema_query).execute(&mut *tx).await?;
+        let create_schema_query = self.fmt_sql("create schema if not exists {schema_name}");
+        sqlx::query(create_schema_query).execute(&mut *tx).await?;
 
-        let create_table_query = format!(
+        let create_table_query = self.fmt_sql(
             r#"
             create table if not exists `{schema_name}`.`{table_name}`
             (
@@ -102,10 +107,8 @@ impl MySqlStore {
                 expiry_date timestamp(6) not null
             )
             "#,
-            schema_name = self.schema_name,
-            table_name = self.table_name
         );
-        sqlx::query(&create_table_query).execute(&mut *tx).await?;
+        sqlx::query(create_table_query).execute(&mut *tx).await?;
 
         tx.commit().await?;
 
@@ -113,15 +116,13 @@ impl MySqlStore {
     }
 
     async fn id_exists(&self, conn: &mut MySqlConnection, id: &Id) -> session_store::Result<bool> {
-        let query = format!(
+        let query = self.fmt_sql(
             r#"
             select exists(select 1 from `{schema_name}`.`{table_name}` where id = ?)
             "#,
-            schema_name = self.schema_name,
-            table_name = self.table_name
         );
 
-        Ok(sqlx::query_scalar(&query)
+        Ok(sqlx::query_scalar(query)
             .bind(id.to_string())
             .fetch_one(conn)
             .await
@@ -133,7 +134,7 @@ impl MySqlStore {
         conn: &mut MySqlConnection,
         record: &Record,
     ) -> session_store::Result<()> {
-        let query = format!(
+        let query = self.fmt_sql(
             r#"
             insert into `{schema_name}`.`{table_name}`
               (id, data, expiry_date) values (?, ?, ?)
@@ -141,10 +142,8 @@ impl MySqlStore {
               data = values(data),
               expiry_date = values(expiry_date)
             "#,
-            schema_name = self.schema_name,
-            table_name = self.table_name
         );
-        sqlx::query(&query)
+        sqlx::query(query)
             .bind(record.id.to_string())
             .bind(rmp_serde::to_vec(&record).map_err(SqlxStoreError::Encode)?)
             .bind(record.expiry_date)
@@ -158,15 +157,13 @@ impl MySqlStore {
 #[async_trait]
 impl ExpiredDeletion for MySqlStore {
     async fn delete_expired(&self) -> session_store::Result<()> {
-        let query = format!(
+        let query = self.fmt_sql(
             r#"
             delete from `{schema_name}`.`{table_name}`
             where expiry_date < utc_timestamp()
             "#,
-            schema_name = self.schema_name,
-            table_name = self.table_name
         );
-        sqlx::query(&query)
+        sqlx::query(query)
             .execute(&self.pool)
             .await
             .map_err(SqlxStoreError::Sqlx)?;
@@ -195,15 +192,13 @@ impl SessionStore for MySqlStore {
     }
 
     async fn load(&self, session_id: &Id) -> session_store::Result<Option<Record>> {
-        let query = format!(
+        let query = self.fmt_sql(
             r#"
             select data from `{schema_name}`.`{table_name}`
             where id = ? and expiry_date > ?
             "#,
-            schema_name = self.schema_name,
-            table_name = self.table_name
         );
-        let data: Option<(Vec<u8>,)> = sqlx::query_as(&query)
+        let data: Option<(Vec<u8>,)> = sqlx::query_as(query)
             .bind(session_id.to_string())
             .bind(OffsetDateTime::now_utc())
             .fetch_optional(&self.pool)
@@ -220,12 +215,8 @@ impl SessionStore for MySqlStore {
     }
 
     async fn delete(&self, session_id: &Id) -> session_store::Result<()> {
-        let query = format!(
-            r#"delete from `{schema_name}`.`{table_name}` where id = ?"#,
-            schema_name = self.schema_name,
-            table_name = self.table_name
-        );
-        sqlx::query(&query)
+        let query = self.fmt_sql(r#"delete from `{schema_name}`.`{table_name}` where id = ?"#);
+        sqlx::query(query)
             .bind(session_id.to_string())
             .execute(&self.pool)
             .await

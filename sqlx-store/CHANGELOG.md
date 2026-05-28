@@ -1,6 +1,7 @@
 # Unreleased
 
 - Update `tower-sessions` to `0.15.0`
+- Update `sqlx` to `0.9.0`
 
 # 0.15.0
 
