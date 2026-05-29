@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-We support the latest commit on the `main` branch.
+We support the latest published version on crates.io.
 
 ## Reporting a Vulnerability
 
