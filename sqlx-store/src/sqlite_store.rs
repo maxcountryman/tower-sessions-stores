@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use sqlx::{sqlite::SqlitePool, SqliteConnection};
+use sqlx::{sqlite::SqlitePool, AssertSqlSafe, SqliteConnection};
 use time::OffsetDateTime;
 use tower_sessions_core::{
     session::{Id, Record},
@@ -53,7 +53,7 @@ impl SqliteStore {
 
     /// Migrate the session schema.
     pub async fn migrate(&self) -> sqlx::Result<()> {
-        let query = format!(
+        let query = AssertSqlSafe(format!(
             r#"
             create table if not exists {}
             (
@@ -63,8 +63,8 @@ impl SqliteStore {
             )
             "#,
             self.table_name
-        );
-        sqlx::query(&query).execute(&self.pool).await?;
+        ));
+        sqlx::query(query).execute(&self.pool).await?;
         Ok(())
     }
 
@@ -73,14 +73,14 @@ impl SqliteStore {
         conn: &mut SqliteConnection,
         record: &Record,
     ) -> session_store::Result<bool> {
-        let query = format!(
+        let query = AssertSqlSafe(format!(
             r#"
             insert or abort into {table_name}
               (id, data, expiry_date) values (?, ?, ?)
             "#,
             table_name = self.table_name
-        );
-        let res = sqlx::query(&query)
+        ));
+        let res = sqlx::query(query)
             .bind(record.id.to_string())
             .bind(rmp_serde::to_vec(record).map_err(SqlxStoreError::Encode)?)
             .bind(record.expiry_date)
@@ -99,7 +99,7 @@ impl SqliteStore {
         conn: &mut SqliteConnection,
         record: &Record,
     ) -> session_store::Result<()> {
-        let query = format!(
+        let query = AssertSqlSafe(format!(
             r#"
             insert into {table_name}
               (id, data, expiry_date) values (?, ?, ?)
@@ -108,8 +108,8 @@ impl SqliteStore {
               expiry_date = excluded.expiry_date
             "#,
             table_name = self.table_name
-        );
-        sqlx::query(&query)
+        ));
+        sqlx::query(query)
             .bind(record.id.to_string())
             .bind(rmp_serde::to_vec(record).map_err(SqlxStoreError::Encode)?)
             .bind(record.expiry_date)
@@ -124,14 +124,14 @@ impl SqliteStore {
 #[async_trait]
 impl ExpiredDeletion for SqliteStore {
     async fn delete_expired(&self) -> session_store::Result<()> {
-        let query = format!(
+        let query = AssertSqlSafe(format!(
             r#"
             delete from {table_name}
             where datetime(expiry_date) < datetime('now')
             "#,
             table_name = self.table_name
-        );
-        sqlx::query(&query)
+        ));
+        sqlx::query(query)
             .execute(&self.pool)
             .await
             .map_err(SqlxStoreError::Sqlx)?;
@@ -159,14 +159,14 @@ impl SessionStore for SqliteStore {
     }
 
     async fn load(&self, session_id: &Id) -> session_store::Result<Option<Record>> {
-        let query = format!(
+        let query = AssertSqlSafe(format!(
             r#"
             select data from {}
             where id = ? and expiry_date > ?
             "#,
             self.table_name
-        );
-        let data: Option<(Vec<u8>,)> = sqlx::query_as(&query)
+        ));
+        let data: Option<(Vec<u8>,)> = sqlx::query_as(query)
             .bind(session_id.to_string())
             .bind(OffsetDateTime::now_utc())
             .fetch_optional(&self.pool)
@@ -183,13 +183,13 @@ impl SessionStore for SqliteStore {
     }
 
     async fn delete(&self, session_id: &Id) -> session_store::Result<()> {
-        let query = format!(
+        let query = AssertSqlSafe(format!(
             r#"
             delete from {} where id = ?
             "#,
             self.table_name
-        );
-        sqlx::query(&query)
+        ));
+        sqlx::query(query)
             .bind(session_id.to_string())
             .execute(&self.pool)
             .await
