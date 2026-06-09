@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use sqlx::{PgConnection, PgPool};
+use sqlx::{AssertSqlSafe, PgConnection, PgPool};
 use time::OffsetDateTime;
 use tower_sessions_core::{
     session::{Id, Record},
@@ -87,14 +87,14 @@ impl PostgresStore {
     pub async fn migrate(&self) -> sqlx::Result<()> {
         let mut tx = self.pool.begin().await?;
 
-        let create_schema_query = format!(
+        let create_schema_query = AssertSqlSafe(format!(
             r#"create schema if not exists "{schema_name}""#,
             schema_name = self.schema_name,
-        );
+        ));
         // Concurrent create schema may fail due to duplicate key violations.
         //
         // This works around that by assuming the schema must exist on such an error.
-        if let Err(err) = sqlx::query(&create_schema_query).execute(&mut *tx).await {
+        if let Err(err) = sqlx::query(create_schema_query).execute(&mut *tx).await {
             if !err
                 .to_string()
                 .contains("duplicate key value violates unique constraint")
@@ -105,7 +105,7 @@ impl PostgresStore {
             return Ok(());
         }
 
-        let create_table_query = format!(
+        let create_table_query = AssertSqlSafe(format!(
             r#"
             create table if not exists "{schema_name}"."{table_name}"
             (
@@ -116,8 +116,8 @@ impl PostgresStore {
             "#,
             schema_name = self.schema_name,
             table_name = self.table_name
-        );
-        sqlx::query(&create_table_query).execute(&mut *tx).await?;
+        ));
+        sqlx::query(create_table_query).execute(&mut *tx).await?;
 
         tx.commit().await?;
 
@@ -125,15 +125,15 @@ impl PostgresStore {
     }
 
     async fn id_exists(&self, conn: &mut PgConnection, id: &Id) -> session_store::Result<bool> {
-        let query = format!(
+        let query = AssertSqlSafe(format!(
             r#"
             select exists(select 1 from "{schema_name}"."{table_name}" where id = $1)
             "#,
             schema_name = self.schema_name,
             table_name = self.table_name
-        );
+        ));
 
-        Ok(sqlx::query_scalar(&query)
+        Ok(sqlx::query_scalar(query)
             .bind(id.to_string())
             .fetch_one(conn)
             .await
@@ -145,7 +145,7 @@ impl PostgresStore {
         conn: &mut PgConnection,
         record: &Record,
     ) -> session_store::Result<()> {
-        let query = format!(
+        let query = AssertSqlSafe(format!(
             r#"
             insert into "{schema_name}"."{table_name}" (id, data, expiry_date)
             values ($1, $2, $3)
@@ -156,8 +156,8 @@ impl PostgresStore {
             "#,
             schema_name = self.schema_name,
             table_name = self.table_name
-        );
-        sqlx::query(&query)
+        ));
+        sqlx::query(query)
             .bind(record.id.to_string())
             .bind(rmp_serde::to_vec(&record).map_err(SqlxStoreError::Encode)?)
             .bind(record.expiry_date)
@@ -172,15 +172,15 @@ impl PostgresStore {
 #[async_trait]
 impl ExpiredDeletion for PostgresStore {
     async fn delete_expired(&self) -> session_store::Result<()> {
-        let query = format!(
+        let query = AssertSqlSafe(format!(
             r#"
             delete from "{schema_name}"."{table_name}"
             where expiry_date < (now() at time zone 'utc')
             "#,
             schema_name = self.schema_name,
             table_name = self.table_name
-        );
-        sqlx::query(&query)
+        ));
+        sqlx::query(query)
             .execute(&self.pool)
             .await
             .map_err(SqlxStoreError::Sqlx)?;
@@ -209,15 +209,15 @@ impl SessionStore for PostgresStore {
     }
 
     async fn load(&self, session_id: &Id) -> session_store::Result<Option<Record>> {
-        let query = format!(
+        let query = AssertSqlSafe(format!(
             r#"
             select data from "{schema_name}"."{table_name}"
             where id = $1 and expiry_date > $2
             "#,
             schema_name = self.schema_name,
             table_name = self.table_name
-        );
-        let record_value: Option<(Vec<u8>,)> = sqlx::query_as(&query)
+        ));
+        let record_value: Option<(Vec<u8>,)> = sqlx::query_as(query)
             .bind(session_id.to_string())
             .bind(OffsetDateTime::now_utc())
             .fetch_optional(&self.pool)
@@ -234,12 +234,12 @@ impl SessionStore for PostgresStore {
     }
 
     async fn delete(&self, session_id: &Id) -> session_store::Result<()> {
-        let query = format!(
+        let query = AssertSqlSafe(format!(
             r#"delete from "{schema_name}"."{table_name}" where id = $1"#,
             schema_name = self.schema_name,
             table_name = self.table_name
-        );
-        sqlx::query(&query)
+        ));
+        sqlx::query(query)
             .bind(session_id.to_string())
             .execute(&self.pool)
             .await
