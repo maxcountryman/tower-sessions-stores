@@ -12,3 +12,7 @@ This is a static catalog of session stores for [`tower-sessions`](https://github
 
 > [!NOTE]
 > While these stores are maintained, we will not be adding additional stores here and instead encourage folks to publish their own stores by implementing [`SessionStore`](https://docs.rs/tower-sessions/latest/tower_sessions/trait.SessionStore.html).
+
+## Security
+
+Please see [SECURITY.md](SECURITY.md) for our vulnerability disclosure policy and how to report security issues responsibly.
