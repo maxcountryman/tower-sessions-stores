@@ -7,12 +7,18 @@ pub use self::mysql_store::MySqlStore;
 #[cfg(feature = "postgres")]
 #[cfg_attr(docsrs, doc(cfg(feature = "postgres")))]
 pub use self::postgres_store::PostgresStore;
-#[cfg(feature = "sqlite")]
-#[cfg_attr(docsrs, doc(cfg(feature = "sqlite")))]
+#[cfg(any(feature = "sqlite", feature = "sqlite-unbundled"))]
+#[cfg_attr(
+    docsrs,
+    doc(cfg(any(feature = "sqlite", feature = "sqlite-unbundled")))
+)]
 pub use self::sqlite_store::SqliteStore;
 
-#[cfg(feature = "sqlite")]
-#[cfg_attr(docsrs, doc(cfg(feature = "sqlite")))]
+#[cfg(any(feature = "sqlite", feature = "sqlite-unbundled"))]
+#[cfg_attr(
+    docsrs,
+    doc(cfg(any(feature = "sqlite", feature = "sqlite-unbundled")))
+)]
 mod sqlite_store;
 
 #[cfg(feature = "postgres")]
