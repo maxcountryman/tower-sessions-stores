@@ -1,6 +1,7 @@
-# Unreleased
+# 0.15.1
 
 - Update `tower-sessions` to `0.15.0`
+- Update `tower-sessions-core` to `0.15.0`
 
 # 0.15.0
 
