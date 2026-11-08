@@ -84,6 +84,14 @@ jobs:
         run: |
           cargo nextest run ${{ matrix.store }}_test --test test_integration
 
+  security-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: rustsec/audit-check@v1.4.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
   # Publish a new version when pushing to main.
   # Will succeed if the version has been updated, otherwise silently fails.
   cargo-publish:
