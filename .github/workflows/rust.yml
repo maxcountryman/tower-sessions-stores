@@ -83,3 +83,19 @@ jobs:
       - name: Run integration tests
         run: |
           cargo nextest run ${{ matrix.store }}_test --test test_integration
+
+  # Publish a new version when pushing to master.
+  # Will succeed if the version has been updated, otherwise silently fails.
+  cargo-publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    env:
+      CRATESIO_TOKEN: ${{ secrets.CRATESIO_TOKEN }}
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+    - name: cargo publish
+      continue-on-error: true
+      run: cargo publish --token $CRATESIO_TOKEN
