@@ -82,10 +82,7 @@ impl MongoDBStore {
 impl ExpiredDeletion for MongoDBStore {
     async fn delete_expired(&self) -> session_store::Result<()> {
         let expire_at = OffsetDateTime::now_utc();
-        let system_time: SystemTime = expire_at
-            .try_into()
-            .map_err(|_| session_store::Error::Backend("Failed to convert time".to_string()))?;
-        let expire_at = mongodb::bson::DateTime::from(system_time);
+        let expire_at = mongodb::bson::DateTime::from(SystemTime::from(expire_at));
         self.collection
             .delete_many(doc! { "expireAt": {"$lt": expire_at} })
             .await
@@ -98,11 +95,7 @@ impl ExpiredDeletion for MongoDBStore {
 #[async_trait]
 impl SessionStore for MongoDBStore {
     async fn save(&self, record: &Record) -> session_store::Result<()> {
-        let system_time: SystemTime = record
-            .expiry_date
-            .try_into()
-            .map_err(|_| session_store::Error::Backend("Failed to convert time".to_string()))?;
-        let expiry_date = mongodb::bson::DateTime::from(system_time);
+        let expiry_date = mongodb::bson::DateTime::from(SystemTime::from(record.expiry_date));
         let doc = to_document(&MongoDBSessionRecord {
             data: mongodb::bson::Binary {
                 subtype: mongodb::bson::spec::BinarySubtype::Generic,
@@ -126,10 +119,7 @@ impl SessionStore for MongoDBStore {
 
     async fn load(&self, session_id: &Id) -> session_store::Result<Option<Record>> {
         let expire_at = OffsetDateTime::now_utc();
-        let system_time: SystemTime = expire_at
-            .try_into()
-            .map_err(|_| session_store::Error::Backend("Failed to convert time".to_string()))?;
-        let expire_at = mongodb::bson::DateTime::from(system_time);
+        let expire_at = mongodb::bson::DateTime::from(SystemTime::from(expire_at));
         let doc = self
             .collection
             .find_one(
