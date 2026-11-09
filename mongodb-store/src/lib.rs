@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use mongodb::bson::{doc, to_document};
 pub use mongodb;
+use mongodb::bson::{doc, to_document};
 use mongodb::{Client, Collection};
 use serde::{Deserialize, Serialize};
 use std::time::SystemTime;
@@ -106,10 +106,7 @@ impl SessionStore for MongoDBStore {
         .map_err(MongoDBStoreError::BsonSerialize)?;
 
         self.collection
-            .update_one(
-                doc! { "_id": record.id.to_string() },
-                doc! { "$set": doc },
-            )
+            .update_one(doc! { "_id": record.id.to_string() }, doc! { "$set": doc })
             .upsert(true)
             .await
             .map_err(MongoDBStoreError::MongoDB)?;
@@ -122,12 +119,10 @@ impl SessionStore for MongoDBStore {
         let expire_at = mongodb::bson::DateTime::from(SystemTime::from(expire_at));
         let doc = self
             .collection
-            .find_one(
-                doc! {
-                    "_id": session_id.to_string(),
-                    "expireAt": {"$gt": expire_at}
-                },
-            )
+            .find_one(doc! {
+                "_id": session_id.to_string(),
+                "expireAt": {"$gt": expire_at}
+            })
             .await
             .map_err(MongoDBStoreError::MongoDB)?;
 
