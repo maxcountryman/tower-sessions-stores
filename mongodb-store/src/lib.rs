@@ -1,8 +1,9 @@
 use async_trait::async_trait;
-use bson::{doc, to_document};
 pub use mongodb;
-use mongodb::{options::UpdateOptions, Client, Collection};
+use mongodb::bson::{doc, to_document};
+use mongodb::{Client, Collection};
 use serde::{Deserialize, Serialize};
+use std::time::SystemTime;
 use time::OffsetDateTime;
 use tower_sessions_core::{
     session::{Id, Record},
@@ -26,7 +27,7 @@ pub enum MongoDBStoreError {
 
     /// A variant to map `mongodb::bson` encode errors.
     #[error(transparent)]
-    BsonSerialize(#[from] bson::ser::Error),
+    BsonSerialize(#[from] mongodb::bson::ser::Error),
 }
 
 impl From<MongoDBStoreError> for session_store::Error {
@@ -44,10 +45,10 @@ impl From<MongoDBStoreError> for session_store::Error {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct MongoDBSessionRecord {
-    data: bson::Binary,
+    data: mongodb::bson::Binary,
 
     #[serde(rename = "expireAt")]
-    expiry_date: bson::DateTime,
+    expiry_date: mongodb::bson::DateTime,
 }
 
 /// A MongoDB session store.
@@ -80,11 +81,10 @@ impl MongoDBStore {
 #[async_trait]
 impl ExpiredDeletion for MongoDBStore {
     async fn delete_expired(&self) -> session_store::Result<()> {
+        let expire_at = OffsetDateTime::now_utc();
+        let expire_at = mongodb::bson::DateTime::from(SystemTime::from(expire_at));
         self.collection
-            .delete_many(
-                doc! { "expireAt": {"$lt": OffsetDateTime::now_utc()} },
-                None,
-            )
+            .delete_many(doc! { "expireAt": {"$lt": expire_at} })
             .await
             .map_err(MongoDBStoreError::MongoDB)?;
 
@@ -95,21 +95,19 @@ impl ExpiredDeletion for MongoDBStore {
 #[async_trait]
 impl SessionStore for MongoDBStore {
     async fn save(&self, record: &Record) -> session_store::Result<()> {
+        let expiry_date = mongodb::bson::DateTime::from(SystemTime::from(record.expiry_date));
         let doc = to_document(&MongoDBSessionRecord {
-            data: bson::Binary {
-                subtype: bson::spec::BinarySubtype::Generic,
+            data: mongodb::bson::Binary {
+                subtype: mongodb::bson::spec::BinarySubtype::Generic,
                 bytes: rmp_serde::to_vec(record).map_err(MongoDBStoreError::Encode)?,
             },
-            expiry_date: bson::DateTime::from(record.expiry_date),
+            expiry_date,
         })
         .map_err(MongoDBStoreError::BsonSerialize)?;
 
         self.collection
-            .update_one(
-                doc! { "_id": record.id.to_string() },
-                doc! { "$set": doc },
-                UpdateOptions::builder().upsert(true).build(),
-            )
+            .update_one(doc! { "_id": record.id.to_string() }, doc! { "$set": doc })
+            .upsert(true)
             .await
             .map_err(MongoDBStoreError::MongoDB)?;
 
@@ -117,15 +115,14 @@ impl SessionStore for MongoDBStore {
     }
 
     async fn load(&self, session_id: &Id) -> session_store::Result<Option<Record>> {
+        let expire_at = OffsetDateTime::now_utc();
+        let expire_at = mongodb::bson::DateTime::from(SystemTime::from(expire_at));
         let doc = self
             .collection
-            .find_one(
-                doc! {
-                    "_id": session_id.to_string(),
-                    "expireAt": {"$gt": OffsetDateTime::now_utc()}
-                },
-                None,
-            )
+            .find_one(doc! {
+                "_id": session_id.to_string(),
+                "expireAt": {"$gt": expire_at}
+            })
             .await
             .map_err(MongoDBStoreError::MongoDB)?;
 
@@ -140,7 +137,7 @@ impl SessionStore for MongoDBStore {
 
     async fn delete(&self, session_id: &Id) -> session_store::Result<()> {
         self.collection
-            .delete_one(doc! { "_id": session_id.to_string() }, None)
+            .delete_one(doc! { "_id": session_id.to_string() })
             .await
             .map_err(MongoDBStoreError::MongoDB)?;
 
