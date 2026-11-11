@@ -95,6 +95,13 @@ jobs:
   # Publish a new version when pushing to main.
   # Will succeed if the version has been updated, otherwise silently fails.
   cargo-publish:
+    strategy:
+      matrix:
+        crate:
+          - tower-sessions-mongodb-store
+          - tower-sessions-moka-store
+          - tower-sessions-redis-store
+          - tower-sessions-sqlx-store
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -106,4 +113,4 @@ jobs:
       continue-on-error: true
       env:
         CARGO_REGISTRY_TOKEN: ${{ secrets.CRATESIO_TOKEN }}
-      run: cargo publish
+      run: cargo publish -p ${{ matrix.crate }}
