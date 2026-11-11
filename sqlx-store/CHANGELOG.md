@@ -1,9 +1,12 @@
 # Unreleased
 
+# 0.16.0
+- Update `sqlx` to `0.9.0`
+- Add `sqlite-unbundled` feature to link against the system SQLite library instead of the bundled one
+
 # 0.15.1
 
 - Update `tower-sessions` to `0.15.0`
-- Add `sqlite-unbundled` feature to link against the system SQLite library instead of the bundled one
 
 # 0.15.0
 

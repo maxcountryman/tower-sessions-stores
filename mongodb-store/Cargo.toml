@@ -1,7 +1,7 @@
 [package]
 name = "tower-sessions-mongodb-store"
 description = "MongoDB session store for `tower-sessions`."
-version = "0.11.0"
+version = "0.12.0"
 edition = "2021"
 authors = ["Max Countryman <hello@maxcountryman.com>"]
 license = "MIT"
@@ -15,16 +15,16 @@ readme = "README.md"
 [dependencies]
 async-trait = "0.1.77"
 mongodb = { version = "3.10.0" }
-rmp-serde = "1.1.2"
+rmp-serde = "1.3.1"
 serde = "1.0.195"
 thiserror = "2.0.18"
-time = "0.3.31"
+time = "0.3.55"
 tower-sessions-core = { version = "0.15.0", features = ["deletion-task"] }
 
 [dev-dependencies]
 axum = "0.8.1"
 tower-sessions = "0.15.0"
-tokio = { version = "1.32.0", features = ["full"] }
+tokio = { version = "1.54.1", features = ["full"] }
 tokio-test = "0.4.3"
 serde = "1"
 
