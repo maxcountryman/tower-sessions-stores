@@ -59,11 +59,11 @@ impl TryFrom<&Record> for MongoDBSessionRecord {
     fn try_from(record: &Record) -> Result<Self, MongoDBStoreError> {
         Ok(MongoDBSessionRecord {
             id: record.id.to_string(),
-            data: bson::Binary {
-                subtype: bson::spec::BinarySubtype::Generic,
+            data: mongodb::bson::Binary {
+                subtype: mongodb::bson::spec::BinarySubtype::Generic,
                 bytes: rmp_serde::to_vec(record).map_err(MongoDBStoreError::Encode)?,
             },
-            expiry_date: bson::DateTime::from(record.expiry_date),
+            expiry_date: mongodb::bson::DateTime::from(SystemTime::from(record.expiry_date)),
         })
     }
 }
@@ -115,19 +115,17 @@ impl SessionStore for MongoDBStore {
         loop {
             let mongo_record: MongoDBSessionRecord = (&*record).try_into()?;
 
-            let result = self.collection
-                .insert_one(mongo_record)
-                .await;
+            let result = self.collection.insert_one(mongo_record).await;
 
             match result {
                 Ok(_) => return Ok(()),
-                Err(err) if matches!(*err.kind,
-                    mongodb::error::ErrorKind::Write(
-                        mongodb::error::WriteFailure::WriteError(
+                Err(err)
+                    if matches!(
+                        *err.kind,
+                        mongodb::error::ErrorKind::Write(mongodb::error::WriteFailure::WriteError(
                             mongodb::error::WriteError { code: 11000, .. } // duplicate key
-                        )
-                    )
-                ) => {},
+                        ))
+                    ) => {}
                 Err(err) => return Err(MongoDBStoreError::MongoDB(err).into()),
             };
 
@@ -139,10 +137,7 @@ impl SessionStore for MongoDBStore {
         let mongo_record: MongoDBSessionRecord = record.try_into()?;
 
         self.collection
-            .replace_one(
-                doc! { "_id": record.id.to_string() },
-                mongo_record,
-            )
+            .replace_one(doc! { "_id": record.id.to_string() }, mongo_record)
             .upsert(true)
             .await
             .map_err(MongoDBStoreError::MongoDB)?;
