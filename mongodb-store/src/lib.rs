@@ -45,14 +45,10 @@ impl From<MongoDBStoreError> for session_store::Error {
 
 #[derive(Serialize, Deserialize, Debug)]
 struct MongoDBSessionRecord {
-<<<<<<< HEAD
-    data: mongodb::bson::Binary,
-=======
     #[serde(rename = "_id")]
     id: String,
 
-    data: bson::Binary,
->>>>>>> 714839d (add mongodb create)
+    data: mongodb::bson::Binary,
 
     #[serde(rename = "expireAt")]
     expiry_date: mongodb::bson::DateTime,
